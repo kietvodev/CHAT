@@ -1,0 +1,211 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Groq AI Chat</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0d1117; color: #c9d1d9; margin: 0; color-scheme: dark; }
+        .chat-screen { display: flex; height: 100vh; flex-direction: column; }
+
+        header { padding: 10px 16px; background: #161b22; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+        header select, header button { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 5px 8px; }
+        .header-left { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .header-left h3 { margin: 0; color: #e6edf3; font-size: 1em; }
+
+        #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .msg { display: flex; gap: 10px; max-width: 85%; }
+        .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+        .avatar { width: 35px; height: 35px; border-radius: 50%; background: #30363d; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; font-size: 0.8em; }
+        .bubble { padding: 12px 14px; border-radius: 12px; background: #21262d; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+        .user .bubble { background: #238636; color: white; }
+
+        .streaming-cursor::after { content: "\25CA"; animation: blink 1s steps(2, start) infinite; }
+        @keyframes blink { to { visibility: hidden; } }
+
+        #input-area { padding: 14px 16px; background: #161b22; border-top: 1px solid #30363d; }
+        .input-row { display: flex; gap: 8px; }
+        textarea { flex: 1; background: #0d1117; color: white; border: 1px solid #30363d; border-radius: 6px; padding: 10px; resize: none; font-family: inherit; font-size: 0.95em; }
+        .input-settings { margin-top: 8px; display: flex; gap: 15px; font-size: 0.8em; flex-wrap: wrap; align-items: center; }
+        button { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+        #btn-send { padding: 8px 20px; background: #238636; color: white; border-color: #238636; }
+        #btn-stop { display: none; padding: 8px 20px; background: #da3633; color: white; border-color: #da3633; }
+        .error-banner { background: #442726; color: #ff7b72; padding: 10px 14px; border-radius: 6px; margin: 4px 0; border: 1px solid #f85149; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+<div class="chat-screen">
+    <header>
+        <div class="header-left">
+            <h3>&#x26A1; Groq Chat</h3>
+            <select id="model-select" title="Model">
+                <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+                <option value="llama-3.1-8b-instant">Llama 3.1 8B (Fast)</option>
+                <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
+                <option value="openai/gpt-oss-20b">GPT-OSS 20B (Fast)</option>
+            </select>
+        </div>
+        <button id="btn-new">Hoi thoai moi</button>
+    </header>
+
+    <div id="messages"></div>
+
+    <div id="input-area">
+        <div class="input-row">
+            <textarea id="user-input" rows="2" placeholder="Nhap tin nhan..."></textarea>
+            <button id="btn-send">Gui</button>
+            <button id="btn-stop">Dung</button>
+        </div>
+        <div class="input-settings">
+            <label>Temp: <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7"> <span id="temp-val">0.7</span></label>
+            <label>Max Tokens:
+                <select id="max_tokens">
+                    <option value="4096" selected>4k</option>
+                    <option value="8192">8k</option>
+                    <option value="16384">16k</option>
+                    <option value="32768">32k</option>
+                </select>
+            </label>
+        </div>
+    </div>
+</div>
+
+<script>
+var GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+var GROQ_API_KEY = "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";
+
+var modelSelect  = document.getElementById("model-select");
+var btnNew       = document.getElementById("btn-new");
+var btnSend      = document.getElementById("btn-send");
+var btnStop      = document.getElementById("btn-stop");
+var userInputEl  = document.getElementById("user-input");
+var messagesEl   = document.getElementById("messages");
+var tempSlider   = document.getElementById("temperature");
+var tempValEl    = document.getElementById("temp-val");
+var maxTokensSel = document.getElementById("max_tokens");
+
+var chatHistory  = [];
+var isBusy       = false;
+var abortController = null;
+
+// ==================== SEND ====================
+async function sendMessage() {
+    if (isBusy) return;
+    var text = userInputEl.value.trim();
+    if (!text) return;
+
+    isBusy = true;
+    btnSend.style.display = "none";
+    btnStop.style.display = "inline-block";
+    userInputEl.value = "";
+
+    appendMessage("user", text);
+    chatHistory.push({ role: "user", content: text });
+
+    var aiWrap = appendMessage("assistant", "");
+    var bubble = aiWrap.querySelector(".bubble");
+    bubble.classList.add("streaming-cursor");
+
+    abortController = new AbortController();
+
+    try {
+        var body = {
+            model: modelSelect.value,
+            messages: chatHistory,
+            stream: true,
+            temperature: parseFloat(tempSlider.value),
+            max_tokens: parseInt(maxTokensSel.value)
+        };
+
+        var res = await fetch(GROQ_API_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + GROQ_API_KEY
+            },
+            body: JSON.stringify(body),
+            signal: abortController.signal
+        });
+
+        if (!res.ok) {
+            var errText = await res.text().catch(function() { return ""; });
+            throw new Error("HTTP " + res.status + ": " + errText.substring(0, 200));
+        }
+
+        var reader = res.body.getReader();
+        var decoder = new TextDecoder();
+        var fullText = "";
+        var buffer = "";
+
+        while (true) {
+            var result = await reader.read();
+            if (result.done) break;
+            buffer += decoder.decode(result.value, { stream: true });
+            var lines = buffer.split("\n");
+            buffer = lines.pop();
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i].trim();
+                if (!line || line === "data: [DONE]") continue;
+                if (line.startsWith("data: ")) line = line.slice(6);
+                try {
+                    var j = JSON.parse(line);
+                    var delta = j.choices && j.choices[0] && j.choices[0].delta;
+                    if (delta && delta.content) {
+                        fullText += delta.content;
+                        bubble.textContent = fullText;
+                        messagesEl.scrollTop = messagesEl.scrollHeight;
+                    }
+                } catch (e) {}
+            }
+        }
+
+        chatHistory.push({ role: "assistant", content: fullText });
+
+    } catch (e) {
+        if (e.name !== "AbortError") appendError(e.message);
+    } finally {
+        bubble.classList.remove("streaming-cursor");
+        isBusy = false;
+        btnSend.style.display = "inline-block";
+        btnStop.style.display = "none";
+    }
+}
+
+// ==================== HELPERS ====================
+function appendMessage(role, text) {
+    var div = document.createElement("div");
+    div.className = "msg " + role;
+    var avatar = role === "user" ? "U" : "AI";
+    div.innerHTML = '<div class="avatar">' + avatar + '</div><div class="bubble">' + escapeHtml(text) + '</div>';
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+}
+
+function appendError(msg) {
+    var el = document.createElement("div");
+    el.className = "error-banner";
+    el.textContent = "Loi: " + msg;
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function escapeHtml(str) {
+    if (!str) return "";
+    return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ==================== EVENTS ====================
+btnSend.onclick = sendMessage;
+btnStop.onclick = function() { if (abortController) abortController.abort(); };
+btnNew.onclick = function() { messagesEl.innerHTML = ""; chatHistory = []; };
+
+userInputEl.onkeydown = function(e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+};
+
+tempSlider.oninput = function() { tempValEl.textContent = tempSlider.value; };
+</script>
+</body>
+</html>

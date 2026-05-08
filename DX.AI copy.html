@@ -1,0 +1,709 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sony DX AI Chat</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0d1117; color: #c9d1d9; margin: 0; color-scheme: dark; }
+        #login-screen, #chat-screen { display: none; height: 100vh; flex-direction: column; }
+        .active { display: flex !important; }
+
+        /* Login */
+        #login-screen { justify-content: center; align-items: center; }
+        .login-box { width: 340px; background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 30px; text-align: center; }
+        .login-box h2 { margin: 0 0 20px; color: #e6edf3; }
+        .login-box input, .login-box select { width: 100%; padding: 10px; margin-bottom: 10px; background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; box-sizing: border-box; }
+        .login-box label { display: block; text-align: left; font-size: 0.82em; color: #8b949e; margin-bottom: 4px; }
+        #token-status { font-size: 0.85em; min-height: 20px; margin-bottom: 4px; }
+        #token-countdown { font-size: 0.82em; min-height: 18px; margin-bottom: 10px; }
+        #btn-manual-start { width: 100%; padding: 10px; background: #238636; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1em; margin-top: 8px; }
+        #btn-manual-start:disabled { background: #2d333b; color: #6e7681; cursor: not-allowed; }
+
+        /* Chat */
+        header { padding: 10px 16px; background: #161b22; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+        header select, header button { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 5px 8px; }
+        .header-left { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+        #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .msg { display: flex; gap: 10px; max-width: 85%; }
+        .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+        .avatar { width: 35px; height: 35px; border-radius: 50%; background: #30363d; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; }
+        .bubble { padding: 12px 14px; border-radius: 12px; background: #21262d; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+        .user .bubble { background: #238636; color: white; }
+
+        .streaming-cursor::after { content: "▊"; animation: blink 1s steps(2, start) infinite; }
+        @keyframes blink { to { visibility: hidden; } }
+
+        #draw-mode-banner { display: none; padding: 6px 16px; background: #1f3d2e; color: #3fb950; font-size: 0.85em; border-top: 1px solid #238636; }
+        #img-preview-bar { display: none; padding: 10px 16px; background: #21262d; border-top: 1px solid #30363d; }
+
+        #input-area { padding: 14px 16px; background: #161b22; border-top: 1px solid #30363d; }
+        .input-row1 { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
+        .input-row2 { display: flex; gap: 8px; }
+        textarea { flex: 1; background: #0d1117; color: white; border: 1px solid #30363d; border-radius: 6px; padding: 10px; resize: none; font-family: inherit; font-size: 0.95em; }
+        .input-row3 { margin-top: 8px; display: flex; gap: 15px; font-size: 0.8em; flex-wrap: wrap; align-items: center; }
+        button { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+        #btn-send { padding: 0 20px; background: #238636; color: white; border-color: #238636; }
+        #btn-stop { display: none; padding: 0 20px; background: #da3633; color: white; border-color: #da3633; }
+
+        #img-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; }
+        #img-overlay img { max-width: 90%; max-height: 90%; border-radius: 8px; }
+        .chat-img, .gen-img { max-width: 300px; border-radius: 8px; cursor: pointer; margin-top: 8px; display: block; }
+        .error-banner { background: #442726; color: #ff7b72; padding: 10px 14px; border-radius: 6px; margin: 4px 0; border: 1px solid #f85149; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" class="active">
+    <div class="login-box">
+        <h2>🤖 DX AI Login</h2>
+        <label>Token</label>
+        <input type="password" id="token-input" placeholder="Nhập Token JWT...">
+        <div id="token-status"></div>
+        <div id="token-countdown"></div>
+        <label>Tên của bạn</label>
+        <input type="text" id="yourname-input" placeholder="Tên hiển thị..." value="Kiet">
+        <label>Chọn Model</label>
+        <select id="login-model-select"></select>
+        <button id="btn-manual-start" disabled>Vào Chat</button>
+    </div>
+</div>
+
+<!-- CHAT SCREEN -->
+<div id="chat-screen">
+    <header>
+        <div class="header-left">
+            <select id="model-select" title="Model"></select>
+            <select id="ai-mode-select" title="AI Mode">
+                <option value="Reliable">Reliable</option>
+                <option value="Balance">Balance</option>
+                <option value="Creative">Creative</option>
+            </select>
+            <select id="lang-select" title="Ngon ngu">
+                <option value="vi">VN Tieng Viet</option>
+                <option value="en">US English</option>
+                <option value="ja">JP Nihongo</option>
+            </select>
+        </div>
+        <div id="token-info" style="font-size:0.8em; color:#8b949e;"></div>
+        <div style="display:flex; gap:8px;">
+            <button id="btn-refresh-token" style="display:none; background:#1f6feb; color:white; border-color:#1f6feb;" title="Lay token moi">🔄 Token</button>
+            <button id="btn-new">Moi</button>
+            <button id="btn-logout">Dang xuat</button>
+        </div>
+    </header>
+
+    <div id="messages"></div>
+
+    <div id="draw-mode-banner">🎨 Che do ve anh dang bat — nhap mo ta va nhan Gui</div>
+    <div id="img-preview-bar"></div>
+
+    <div id="input-area">
+        <div class="input-row1">
+            <button id="btn-img">📷 Anh</button>
+            <button id="btn-draw">🎨 Ve</button>
+            <select id="img-gen-model" style="display:none;">
+                <option value="imagen-4.0-generate-001">Imagen 4.0</option>
+                <option value="imagen-3.0-generate-001">Imagen 3.0</option>
+            </select>
+            <input type="file" id="img-input" multiple accept="image/*" style="display:none;">
+        </div>
+        <div class="input-row2">
+            <textarea id="user-input" rows="2" placeholder="Nhap tin nhan..."></textarea>
+            <button id="btn-send">Gui</button>
+            <button id="btn-stop">Dung</button>
+        </div>
+        <div class="input-row3">
+            <label>Temp: <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7"> <span id="temp-val">0.7</span></label>
+            <label>Top P: <input type="range" id="top_p" min="0" max="1" step="0.1" value="1.0"> <span id="topp-val">1.0</span></label>
+            <label>Max Tokens:
+                <select id="max_tokens">
+                    <option value="2000">2k</option>
+                    <option value="4000" selected>4k</option>
+                    <option value="8000">8k</option>
+                    <option value="16000">16k</option>
+                </select>
+            </label>
+            <label><input type="checkbox" id="conversation-mode" checked> Ngu canh</label>
+            <label><input type="checkbox" id="secret-mode"> Bi mat</label>
+        </div>
+    </div>
+</div>
+
+<div id="img-overlay"><img id="img-overlay-img" src="" alt=""></div>
+
+<script>
+// ==================== CONFIG ====================
+const API_URL     = "https://dx-ai.sony.com/api/GenAIStream/chat";
+const API_IMG_URL = "https://dx-ai.sony.com/api/GenAI/chat";
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_API_KEY = "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";
+
+const MODELS = [
+    { group: "OpenAI",    name: "GPT5.2 Chat",       id: "gpt-5.2-chat" },
+    { group: "OpenAI",    name: "GPT5.2",             id: "gpt-5.2" },
+    { group: "OpenAI",    name: "GPT5.1 Chat",        id: "gpt-5.1-chat" },
+    { group: "OpenAI",    name: "GPT5.1",             id: "gpt-5.1" },
+    { group: "OpenAI",    name: "GPT5",               id: "gpt-5" },
+    { group: "OpenAI",    name: "GPT5 Mini",          id: "gpt-5-mini" },
+    { group: "OpenAI",    name: "GPT4.1",             id: "gpt-4.1-20250414" },
+    { group: "OpenAI",    name: "GPT4.1 Mini",        id: "gpt-4.1-mini-20250414" },
+    { group: "OpenAI",    name: "GPT4.1 Nano",        id: "gpt-4.1-nano-20250414" },
+    { group: "OpenAI",    name: "o3 Mini",            id: "o3-mini-20250131" },
+    { group: "Anthropic", name: "Claude 4.6 Opus",    id: "anthropic.claude-opus-4-6-v1" },
+    { group: "Anthropic", name: "Claude 4.6 Sonnet",  id: "anthropic.claude-sonnet-4-6" },
+    { group: "Anthropic", name: "Claude 4.5 Haiku",   id: "anthropic.claude-haiku-4-5-20251001-v1:0" },
+    { group: "Anthropic", name: "Claude 4.5 Sonnet",  id: "anthropic.claude-sonnet-4-5-20250929-v1:0" },
+    { group: "Anthropic", name: "Claude 4.5 Opus",    id: "anthropic.claude-opus-4-5-20250514-v1:0" },
+    { group: "Anthropic", name: "Claude 4 Sonnet",    id: "anthropic.claude-sonnet-4-20251101-v1:0" },
+    { group: "Anthropic", name: "Claude 4.1 Opus",    id: "anthropic.claude-opus-4-1-20250805-v1:0" },
+    { group: "Google",    name: "Gemini 2.5 Flash",   id: "gemini-2.5-flash" },
+    { group: "Amazon",    name: "Nova 2 Lite",        id: "amazon.nova-2-lite-v1:0" },
+    { group: "DeepSeek",  name: "DeepSeek V3.1",      id: "deepseek-v3-v1:0" },
+    { group: "AI21 Labs", name: "Jamba 1.5 Large",    id: "ai21.jamba-1-5-large-v1:0" },
+    { group: "AI21 Labs", name: "Jamba 1.5 Mini",     id: "ai21.jamba-1-5-mini-v1:0" },
+    { group: "Cohere",    name: "Command R+",         id: "cohere.command-r-plus-v1:0" },
+    { group: "Cohere",    name: "Command R",          id: "cohere.command-r-v1:0" },
+    { group: "Groq",      name: "Llama 3.1 8B",       id: "groq:llama-3.1-8b-instant" },
+    { group: "Groq",      name: "Llama 3.3 70B",      id: "groq:llama-3.3-70b-versatile" },
+    { group: "Groq",      name: "GPT-OSS 120B",       id: "groq:openai/gpt-oss-120b" },
+    { group: "Groq",      name: "GPT-OSS 20B",        id: "groq:openai/gpt-oss-20b" }
+];
+
+// ==================== HELPERS: MODEL TYPE ====================
+function isGroqModel(mid) { return mid && mid.startsWith("groq:"); }
+function getGroqModelId(mid) { return mid.replace("groq:", ""); }
+
+// ==================== STATE ====================
+let authToken      = "";
+let userName       = "";
+let yourName       = "Kiet";
+let currentModel   = "anthropic.claude-opus-4-6-v1";
+let conversationId = crypto.randomUUID();
+let msgCount       = 0;
+let isBusy         = false;
+let abortController = null;
+let countdownTimer  = null;
+let pendingImages   = [];
+let isImageMode     = false;
+
+// ==================== DOM ====================
+const loginScreen    = document.getElementById("login-screen");
+const chatScreen     = document.getElementById("chat-screen");
+const tokenInput     = document.getElementById("token-input");
+const tokenStatusEl  = document.getElementById("token-status");
+const tokenCountdown = document.getElementById("token-countdown");
+const btnManualStart = document.getElementById("btn-manual-start");
+const yournameInput  = document.getElementById("yourname-input");
+const loginModelSel  = document.getElementById("login-model-select");
+const modelSelect    = document.getElementById("model-select");
+const aiModeSelect   = document.getElementById("ai-mode-select");
+const langSelect     = document.getElementById("lang-select");
+const btnLogout      = document.getElementById("btn-logout");
+const btnNew         = document.getElementById("btn-new");
+const btnSend        = document.getElementById("btn-send");
+const btnStop        = document.getElementById("btn-stop");
+const userInputEl    = document.getElementById("user-input");
+const messagesEl     = document.getElementById("messages");
+const tokenInfoEl    = document.getElementById("token-info");
+const tempSlider     = document.getElementById("temperature");
+const tempValEl      = document.getElementById("temp-val");
+const toppSlider     = document.getElementById("top_p");
+const toppValEl      = document.getElementById("topp-val");
+const maxTokensSel   = document.getElementById("max_tokens");
+const secretModeEl   = document.getElementById("secret-mode");
+const conversationEl = document.getElementById("conversation-mode");
+const imgInput       = document.getElementById("img-input");
+const btnImg         = document.getElementById("btn-img");
+const btnDraw        = document.getElementById("btn-draw");
+const imgPreviewBar  = document.getElementById("img-preview-bar");
+const imgOverlay     = document.getElementById("img-overlay");
+const imgOverlayImg  = document.getElementById("img-overlay-img");
+const drawModeBanner = document.getElementById("draw-mode-banner");
+const imgGenModelSel = document.getElementById("img-gen-model");
+
+// ==================== INIT MODELS ====================
+let lastGroup = "";
+MODELS.forEach(m => {
+    const o1 = document.createElement("option");
+    o1.value = m.id;
+    o1.textContent = "[" + m.group + "] " + m.name;
+    loginModelSel.appendChild(o1);
+
+    if (m.group !== lastGroup) {
+        const grp = document.createElement("optgroup");
+        grp.label = m.group;
+        modelSelect.appendChild(grp);
+        lastGroup = m.group;
+    }
+    const o2 = document.createElement("option");
+    o2.value = m.id;
+    o2.textContent = m.name;
+    if (m.id === currentModel) o2.selected = true;
+    modelSelect.lastChild.appendChild(o2);
+});
+loginModelSel.value = currentModel;
+
+// Bat nut "Vao Chat" khi chon Groq model (khong can token)
+loginModelSel.onchange = function() {
+    if (isGroqModel(loginModelSel.value)) {
+        btnManualStart.disabled = false;
+    } else {
+        btnManualStart.disabled = !isTokenValid(tokenInput.value.trim());
+    }
+};
+
+// ==================== JWT UTILS ====================
+function parseJwt(token) {
+    try {
+        const b64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+        return JSON.parse(atob(b64));
+    } catch (e) { return null; }
+}
+function isTokenValid(token) {
+    if (!token) return false;
+    const p = parseJwt(token);
+    return p && p.exp && p.exp * 1000 > Date.now();
+}
+
+// ==================== COUNTDOWN ====================
+function startCountdown(exp) {
+    if (countdownTimer) clearInterval(countdownTimer);
+    function update() {
+        const rem = exp * 1000 - Date.now();
+        if (rem <= 0) {
+            tokenCountdown.innerHTML = '<span style="color:#f85149;">⚠ Token da het han</span>';
+            clearInterval(countdownTimer);
+            countdownTimer = null;
+            showTokenRefresh();
+            return;
+        }
+        const mins = Math.floor(rem / 60000);
+        const secs = Math.floor((rem % 60000) / 1000);
+        let color = "#3fb950";
+        if (rem < 5 * 60000) color = "#f85149";
+        else if (rem < 15 * 60000) color = "#d29922";
+        tokenCountdown.innerHTML = "<span style=\"color:" + color + "\">🕒 Het han sau: " + mins + ":" + String(secs).padStart(2,"0") + "</span>";
+    }
+    update();
+    countdownTimer = setInterval(update, 1000);
+}
+
+// ==================== LOGIN ====================
+function getDisplayName(p) {
+    if (!p) return "User";
+    if (p.given_name && p.family_name) return p.given_name + " " + p.family_name;
+    if (p.given_name) return p.given_name;
+    if (p.name) return p.name;
+    if (p.email) return p.email;
+    return "User";
+}
+
+function getApiName(p) {
+    if (!p) return "User";
+    if (p.given_name && p.family_name) return (p.given_name + " " + p.family_name).toUpperCase();
+    return getDisplayName(p).toUpperCase();
+}
+
+function applyValidToken(val) {
+    authToken = val;
+    const p = parseJwt(val);
+    userName = getDisplayName(p);
+    yourName = getApiName(p);
+    yournameInput.value = yourName;
+    startCountdown(p.exp);
+    tokenStatusEl.innerHTML = "<span style=\"color:#3fb950\">✅ Token hop le — " + userName + "</span>";
+    btnManualStart.disabled = false;
+    localStorage.setItem("dxai_token", val);
+}
+
+tokenInput.oninput = function() {
+    const val = tokenInput.value.trim();
+    if (isTokenValid(val)) {
+        applyValidToken(val);
+    } else {
+        tokenStatusEl.innerHTML = val ? "<span style=\"color:#f85149\">❌ Token khong hop le hoac da het han</span>" : "";
+        tokenCountdown.innerHTML = "";
+        btnManualStart.disabled = true;
+    }
+};
+
+btnManualStart.onclick = function() {
+    currentModel = loginModelSel.value;
+    if (!isGroqModel(currentModel) && !authToken) return;
+    yourName = yournameInput.value.trim() || "Kiet";
+    modelSelect.value = currentModel;
+    loginScreen.classList.remove("active");
+    chatScreen.classList.add("active");
+    tokenInfoEl.textContent = isGroqModel(currentModel) ? "⚡ Groq (Free)" : "👤 " + userName;
+};
+
+// ==================== TOKEN REFRESH (khi het han) ====================
+function showTokenRefresh() {
+    var existing = document.getElementById("token-refresh-overlay");
+    if (existing) existing.remove();
+    var overlay = document.createElement("div");
+    overlay.id = "token-refresh-overlay";
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:2000;display:flex;justify-content:center;align-items:center;";
+    overlay.innerHTML = '<div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:30px;width:400px;text-align:center;">'
+        + '<h3 style="color:#f85149;margin:0 0 12px;">⚠ Token da het han</h3>'
+        + '<p style="color:#8b949e;font-size:0.85em;margin-bottom:12px;">Lich su chat van con — chi can lay token moi va dan vao day</p>'
+        + '<div style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px;margin-bottom:12px;text-align:left;font-size:0.8em;color:#8b949e;line-height:1.6;">'
+        + '<b style="color:#e6edf3;">Cach lay token moi:</b><br>'
+        + '1. Nhan nut "Mo trang DX AI" ben duoi<br>'
+        + '2. Dang nhap (neu can)<br>'
+        + '3. Nhan <b>F12</b> &rarr; tab <b>Network</b><br>'
+        + '4. Gui thu 1 tin nhan bat ky<br>'
+        + '5. Tim request <b>chat</b> &rarr; tab <b>Headers</b><br>'
+        + '6. Copy gia tri <b>authorization</b> (bat dau bang eyJ...)<br>'
+        + '7. Dan vao o ben duoi'
+        + '</div>'
+        + '<button id="open-auth-btn" style="width:100%;padding:10px;background:#1f6feb;color:white;border:none;border-radius:6px;cursor:pointer;margin-bottom:10px;font-size:0.95em;">🔗 Mo trang DX AI</button>'
+        + '<input type="password" id="refresh-token-input" placeholder="Dan token moi (eyJ...)..." style="width:100%;padding:10px;background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;box-sizing:border-box;margin-bottom:10px;">'
+        + '<div id="refresh-token-status" style="font-size:0.85em;min-height:20px;margin-bottom:8px;"></div>'
+        + '<button id="refresh-token-btn" disabled style="width:100%;padding:10px;background:#238636;color:white;border:none;border-radius:6px;cursor:pointer;">✅ Cap nhat Token</button>'
+        + '</div>';
+    document.body.appendChild(overlay);
+
+    var inp = document.getElementById("refresh-token-input");
+    var btn = document.getElementById("refresh-token-btn");
+    var sts = document.getElementById("refresh-token-status");
+    var openBtn = document.getElementById("open-auth-btn");
+
+    openBtn.onclick = function() {
+        window.open("https://dx-ai.sony.com/auth/index.html?page=ELLM", "_blank");
+    };
+
+    inp.oninput = function() {
+        var v = inp.value.trim();
+        if (isTokenValid(v)) {
+            sts.innerHTML = '<span style="color:#3fb950">✅ Token moi hop le</span>';
+            btn.disabled = false;
+        } else {
+            sts.innerHTML = v ? '<span style="color:#f85149">❌ Khong hop le</span>' : '';
+            btn.disabled = true;
+        }
+    };
+
+    btn.onclick = function() {
+        var v = inp.value.trim();
+        if (!isTokenValid(v)) return;
+        applyValidToken(v);
+        tokenInput.value = v;
+        overlay.remove();
+    };
+}
+
+const saved = localStorage.getItem("dxai_token");
+if (saved && isTokenValid(saved)) {
+    tokenInput.value = saved;
+    applyValidToken(saved);
+}
+
+// ==================== SEND MESSAGE ====================
+async function sendMessage() {
+    if (isBusy) return;
+    const text = userInputEl.value.trim();
+    if (!text && pendingImages.length === 0) return;
+
+    if (isImageMode) { generateImage(text); return; }
+
+    var selectedModel = modelSelect.value;
+    var useGroq = isGroqModel(selectedModel);
+
+    if (!useGroq && !isTokenValid(authToken)) {
+        appendError("Token da het han. Vui long dang nhap lai.");
+        showTokenRefresh();
+        return;
+    }
+
+    isBusy = true;
+    btnSend.style.display = "none";
+    btnStop.style.display = "inline-block";
+    userInputEl.value = "";
+    userInputEl.style.height = "auto";
+
+    const imagesToSend = pendingImages.map(function(i) { return i.dataUrl; });
+    pendingImages = [];
+    renderImagePreviews();
+
+    appendMessage("user", text, imagesToSend);
+    msgCount++;
+
+    const aiWrap = appendMessage("assistant", "");
+    const bubble = aiWrap.querySelector(".bubble");
+    bubble.classList.add("streaming-cursor");
+
+    abortController = new AbortController();
+
+    try {
+        if (useGroq) {
+            await sendGroqMessage(text, bubble);
+        } else {
+            await sendDxAiMessage(text, imagesToSend, bubble);
+        }
+    } catch (e) {
+        if (e.name !== "AbortError") appendError(e.message);
+    } finally {
+        bubble.classList.remove("streaming-cursor");
+        isBusy = false;
+        btnSend.style.display = "inline-block";
+        btnStop.style.display = "none";
+    }
+}
+
+// ==================== GROQ API ====================
+async function sendGroqMessage(text, bubble) {
+    var groqModel = getGroqModelId(modelSelect.value);
+    var body = {
+        model: groqModel,
+        messages: [{ role: "user", content: text }],
+        stream: true,
+        temperature: parseFloat(tempSlider.value),
+        top_p: parseFloat(toppSlider.value),
+        max_tokens: parseInt(maxTokensSel.value)
+    };
+
+    var res = await fetch(GROQ_API_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + GROQ_API_KEY
+        },
+        body: JSON.stringify(body),
+        signal: abortController.signal
+    });
+
+    if (!res.ok) {
+        var errText = await res.text().catch(function() { return ""; });
+        throw new Error("Groq HTTP " + res.status + ": " + errText.substring(0, 200));
+    }
+
+    var reader = res.body.getReader();
+    var decoder = new TextDecoder();
+    var fullText = "";
+    var buffer = "";
+
+    while (true) {
+        var result = await reader.read();
+        if (result.done) break;
+        buffer += decoder.decode(result.value, { stream: true });
+        var lines = buffer.split("\n");
+        buffer = lines.pop();
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line || line === "data: [DONE]") continue;
+            if (line.startsWith("data: ")) line = line.slice(6);
+            try {
+                var j = JSON.parse(line);
+                var delta = j.choices && j.choices[0] && j.choices[0].delta;
+                if (delta && delta.content) {
+                    fullText += delta.content;
+                    bubble.textContent = fullText;
+                    messagesEl.scrollTop = messagesEl.scrollHeight;
+                }
+            } catch (e) {}
+        }
+    }
+}
+
+// ==================== DX AI API ====================
+async function sendDxAiMessage(text, imagesToSend, bubble) {
+        const body = {
+            original_prompt: text,
+            stream: true,
+            model: modelSelect.value,
+            AI_Type: secretModeEl.checked ? "secret" : "general",
+            AI_mode: aiModeSelect.value,
+            Company: "Sony Semiconductor Manufacturing Corporation",
+            DomainName: "jp.sony.com",
+            NoOfConversation: msgCount,
+            command: "normal",
+            conversation_id: conversationId,
+            images: imagesToSend,
+            isConversationMode: conversationEl.checked,
+            isSecretMode: secretModeEl.checked,
+            lang: langSelect.value,
+            max_tokens: parseInt(maxTokensSel.value),
+            temperature: parseFloat(tempSlider.value),
+            top_p: parseFloat(toppSlider.value),
+            yourname: yourName
+        };
+
+        const res = await fetch(API_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": authToken,
+                "x-requested-with": "XMLHttpRequest"
+            },
+            body: JSON.stringify(body),
+            signal: abortController.signal
+        });
+
+        if (!res.ok) {
+            const errText = await res.text().catch(function() { return ""; });
+            throw new Error("HTTP " + res.status + ": " + errText.substring(0, 200));
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = "";
+        let buffer = "";
+
+        while (true) {
+            const result = await reader.read();
+            if (result.done) break;
+            buffer += decoder.decode(result.value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop();
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
+                if (!line || line === "data: [DONE]") continue;
+                if (line.startsWith("data: ")) line = line.slice(6);
+                try {
+                    const j = JSON.parse(line);
+                    const content = j.completionText || (j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content) || "";
+                    if (content) {
+                        fullText += content;
+                        bubble.textContent = fullText;
+                        messagesEl.scrollTop = messagesEl.scrollHeight;
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+
+// ==================== GENERATE IMAGE ====================
+async function generateImage(prompt) {
+    if (!prompt) return;
+    isBusy = true;
+    btnSend.style.display = "none";
+    btnStop.style.display = "inline-block";
+    userInputEl.value = "";
+
+    appendMessage("user", "🎨 " + prompt);
+    const aiWrap = appendMessage("assistant", "⏳ Dang ve...");
+    const bubble = aiWrap.querySelector(".bubble");
+
+    try {
+        const res = await fetch(API_IMG_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": authToken },
+            body: JSON.stringify({
+                original_prompt: prompt,
+                command: "imageCreation",
+                AI_ImageMode: imgGenModelSel.value
+            })
+        });
+        const data = await res.json();
+        const b64 = (data[0] && (data[0].base64 || data[0].url)) || "";
+        if (!b64) throw new Error("API khong tra ve anh");
+        bubble.textContent = "";
+        const img = document.createElement("img");
+        img.src = b64.startsWith("http") ? b64 : "data:image/png;base64," + b64;
+        img.className = "gen-img";
+        img.onclick = function() { openOverlay(img.src); };
+        bubble.appendChild(img);
+    } catch (e) {
+        bubble.textContent = "";
+        appendError(e.message);
+    } finally {
+        isBusy = false;
+        btnSend.style.display = "inline-block";
+        btnStop.style.display = "none";
+    }
+}
+
+// ==================== HELPERS ====================
+function appendMessage(role, text, imgs) {
+    imgs = imgs || [];
+    const div = document.createElement("div");
+    div.className = "msg " + role;
+    const avatarText = role === "user" ? (yourName[0] || "U").toUpperCase() : "AI";
+    div.innerHTML = "<div class=\"avatar\">" + avatarText + "</div><div class=\"bubble\">" + text + "</div>";
+    const bubble = div.querySelector(".bubble");
+    imgs.forEach(function(src) {
+        const img = document.createElement("img");
+        img.src = src; img.className = "chat-img";
+        img.onclick = function() { openOverlay(src); };
+        bubble.appendChild(img);
+    });
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+}
+
+function appendError(msg) {
+    const el = document.createElement("div");
+    el.className = "error-banner";
+    el.textContent = "⚠ Loi: " + msg;
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function openOverlay(src) { imgOverlayImg.src = src; imgOverlay.style.display = "flex"; }
+imgOverlay.onclick = function() { imgOverlay.style.display = "none"; };
+
+function renderImagePreviews() {
+    imgPreviewBar.innerHTML = "";
+    imgPreviewBar.style.display = pendingImages.length ? "block" : "none";
+    pendingImages.forEach(function(img, i) {
+        const el = document.createElement("img");
+        el.src = img.dataUrl;
+        el.style.cssText = "height:50px; margin-right:5px; border-radius:4px; cursor:pointer; vertical-align:middle;";
+        el.title = "Nhan de xoa";
+        el.onclick = function() { pendingImages.splice(i, 1); renderImagePreviews(); };
+        imgPreviewBar.appendChild(el);
+    });
+}
+
+// ==================== EVENTS ====================
+btnSend.onclick = sendMessage;
+btnStop.onclick = function() { if (abortController) abortController.abort(); };
+
+btnNew.onclick = function() {
+    messagesEl.innerHTML = "";
+    conversationId = crypto.randomUUID();
+    msgCount = 0;
+};
+
+btnLogout.onclick = function() {
+    localStorage.removeItem("dxai_token");
+    location.reload();
+};
+
+btnImg.onclick = function() { imgInput.click(); };
+imgInput.onchange = function(e) {
+    Array.from(e.target.files).forEach(function(file) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            pendingImages.push({ dataUrl: ev.target.result, name: file.name });
+            renderImagePreviews();
+        };
+        reader.readAsDataURL(file);
+    });
+    imgInput.value = "";
+};
+
+btnDraw.onclick = function() {
+    isImageMode = !isImageMode;
+    btnDraw.style.background = isImageMode ? "#238636" : "";
+    btnDraw.style.color = isImageMode ? "white" : "";
+    drawModeBanner.style.display = isImageMode ? "block" : "none";
+    imgGenModelSel.style.display = isImageMode ? "inline-block" : "none";
+    userInputEl.placeholder = isImageMode ? "Mo ta hinh anh muon ve..." : "Nhap tin nhan...";
+};
+
+userInputEl.onkeydown = function(e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+};
+
+tempSlider.oninput = function() { tempValEl.textContent = tempSlider.value; };
+toppSlider.oninput = function() { toppValEl.textContent = toppSlider.value; };
+modelSelect.onchange = function() { currentModel = modelSelect.value; };
+</script>
+</body>
+</html>

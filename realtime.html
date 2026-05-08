@@ -1,0 +1,1799 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TransChat - Real-time Translation</title>
+<link rel="icon" href="data:image/svg+xml,svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='20' width='100' height='100' fill='%236366f1'/><text x='50' y='68' text-anchor='middle' font-size='50' font-family='Arial' font-weight='bold' fill='white'>T</text></svg>">
+<link rel="stylesheet" href="/realtime.css?v=7">
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="login-screen">
+    <div class="login-card">
+        <div class="login-logo">
+            <div class="login-icon"><svg viewBox="0 0 48 48" fill="none"><rect x="4" y="8" width="40" height="28" rx="6" stroke="url(#lg1)" stroke-width="2.5"/><path d="M16 42h16M24 36v6" stroke="url(#lg1)" stroke-width="2.5" stroke-linecap="round"/><circle cx="34" cy="18" r="3.5" fill="#22c55e" opacity="0.9"/><path d="M12 28l5-5 4 3 6-7 9 11" stroke="url(#lg1)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><defs><linearGradient id="lg1" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#818cf8"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs></svg></div>
+            <h1>TransChat</h1>
+            <p>Real-time Translation Chat</p>
+        </div>
+
+        <!-- Step 1: Language selection -->
+        <div id="login-step-lang">
+            <div class="field">
+                <label id="lbl-choose-lang">Choose your language</label>
+            </div>
+            <div id="lang-grid">
+                <button class="lang-btn" data-lang="vi"><span class="lang-flag">🇻🇳</span><span>Tiếng Việt</span></button>
+                <button class="lang-btn" data-lang="en"><span class="lang-flag">🇬🇧</span><span>English</span></button>
+                <button class="lang-btn" data-lang="ja"><span class="lang-flag">🇯🇵</span><span>日本語</span></button>
+                <button class="lang-btn" data-lang="ko"><span class="lang-flag">🇰🇷</span><span>한국어</span></button>
+                <button class="lang-btn" data-lang="zh"><span class="lang-flag">🇨🇳</span><span>中文</span></button>
+                <button class="lang-btn" data-lang="fr"><span class="lang-flag">🇫🇷</span><span>Français</span></button>
+                <button class="lang-btn" data-lang="de"><span class="lang-flag">🇩🇪</span><span>Deutsch</span></button>
+                <button class="lang-btn" data-lang="es"><span class="lang-flag">🇪🇸</span><span>Español</span></button>
+                <button class="lang-btn" data-lang="th"><span class="lang-flag">🇹🇭</span><span>ไทย</span></button>
+                <button class="lang-btn" data-lang="ar"><span class="lang-flag">🇸🇦</span><span>العربية</span></button>
+                <button class="lang-btn" data-lang="ru"><span class="lang-flag">🇷🇺</span><span>Русский</span></button>
+                <button class="lang-btn" data-lang="pt"><span class="lang-flag">🇧🇷</span><span>Português</span></button>
+            </div>
+        </div>
+
+        <!-- Step 2: Name input (hidden initially) -->
+        <div id="login-step-name" style="display:none">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer" id="lang-chosen-back">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                <span id="lang-chosen-display" style="font-size:0.85em;color:var(--text-2)"></span>
+            </div>
+            <div class="field">
+                <label id="lbl-your-name">Your Name</label>
+                <input type="text" id="inp-name" placeholder="Enter your name..." maxlength="30" autocomplete="off">
+            </div>
+            <button class="btn-join" id="btn-join">Join Chat</button>
+        </div>
+
+        <select id="inp-lang" style="display:none">
+            <option value="vi">Vietnamese</option>
+            <option value="en">English</option>
+            <option value="ja">Japanese</option>
+            <option value="ko">Korean</option>
+            <option value="zh">Chinese</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="es">Spanish</option>
+            <option value="th">Thai</option>
+            <option value="ar">Arabic</option>
+            <option value="ru">Russian</option>
+            <option value="pt">Portuguese</option>
+        </select>
+        <div id="login-error"></div>
+    </div>
+</div>
+
+<!-- ═══ CHAT ═══ -->
+<div id="chat-screen">
+    <div id="status-bar">Reconnecting...</div>
+    <div id="chat-header">
+        <button id="btn-menu" class="hdr-btn"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><rect x="2" y="4" width="20" height="14" rx="3" stroke="var(--accent)" stroke-width="1.8"/><path d="M8 21h8M12 18v3" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"/><circle cx="17" cy="9" r="2" fill="var(--green)"/><path d="M6 13l2-2 2 1.5L13 10l4 5" stroke="var(--accent-h)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="header-title">TransChat</span>
+        <span class="header-spacer"></span>
+        <span id="my-badge"></span>
+        <button id="btn-ai" class="hdr-btn" title="AI Assistant"><svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"/><circle cx="9" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="11" r="1.2" fill="currentColor" stroke="none"/><path d="M9.5 15a3.5 3.5 0 0 0 5 0"/></svg></button>
+        <button id="btn-notif" class="hdr-btn" title="Notifications"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="hdr-dot"></span></button>
+        <button id="btn-admin" class="hdr-btn" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <button id="btn-logout" class="hdr-btn" title="Logout"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
+    </div>
+    <div id="chat-body">
+        <div id="sidebar-overlay"></div>
+        <div id="sidebar">
+            <div class="sidebar-section" id="online-label">Online (0)</div>
+            <div id="online-list"></div>
+            <div class="sidebar-section" id="offline-label">Offline (0)</div>
+            <div id="offline-list"></div>
+        </div>
+        <div id="main-content">
+            <div id="empty-conv" style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text-3)">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span style="font-size:1.1em;font-weight:500">Select a user to start chatting</span>
+                <span style="font-size:0.85em">Click on a user in the sidebar</span>
+            </div>
+            <div id="conv-header">
+                <button id="conv-back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+                <span id="conv-name">Group</span>
+                <span id="conv-lang"></span>
+                <span style="flex:1"></span>
+                <button id="conv-call-btn" title="Video call"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></button>
+            </div>
+            <div id="messages-wrap" style="display:none"></div>
+            <div id="new-msg-badge">New messages</div>
+            <div id="typing-bar">
+                <div class="typing-dots"><span></span><span></span><span></span></div>
+                <span id="typing-text"></span>
+            </div>
+            <div id="img-preview-bar">
+                <img id="img-preview-thumb" src="">
+                <span class="img-name" id="img-preview-name"></span>
+                <button class="img-remove" id="img-preview-remove">&times;</button>
+            </div>
+            <div id="input-area" style="display:none">
+                <input type="file" id="file-input" accept="image/*" style="display:none">
+                <button id="btn-attach" title="Send image"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+                <textarea id="msg-input" rows="1" placeholder="Type a message..."></textarea>
+                <button id="btn-send"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ AI MODAL ═══ -->
+<div id="ai-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+    <div style="background:var(--bg-1);border:1px solid var(--bg-2);border-radius:16px;padding:24px 28px;width:480px;max-width:94vw;max-height:85vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-weight:700;font-size:1.05em;display:flex;align-items:center;gap:8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-h)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"/><circle cx="9" cy="11" r="1.2" fill="var(--accent-h)" stroke="none"/><circle cx="15" cy="11" r="1.2" fill="var(--accent-h)" stroke="none"/><path d="M9.5 15a3.5 3.5 0 0 0 5 0"/></svg> AI Assistant</span>
+            <button id="ai-close" style="background:none;border:none;color:var(--text-3);font-size:1.4em;cursor:pointer;padding:4px 8px;border-radius:6px;transition:all 0.2s" onmouseover="this.style.background='var(--bg-2)'" onmouseout="this.style.background='none'">&times;</button>
+        </div>
+        <div id="ai-messages" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;min-height:120px;max-height:340px;padding-right:4px"></div>
+        <div style="display:flex;gap:8px">
+            <textarea id="ai-input" rows="2" placeholder="Ask AI about this conversation..." style="flex:1;background:var(--bg-0);color:var(--text);border:1px solid var(--bg-3);border-radius:8px;padding:9px 12px;resize:none;font-family:inherit;font-size:0.9em"></textarea>
+            <button id="ai-send" style="padding:9px 16px;background:linear-gradient(135deg,#4f46e5,#6366f1);color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.9em;align-self:flex-end">Ask</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ ADMIN MODAL ═══ -->
+<div id="lightbox" onclick="this.style.display='none'"><img id="lightbox-img" src=""></div>
+<div id="admin-overlay">
+    <div id="admin-modal">
+        <h2><span>Admin Panel</span><button id="admin-close-x">&times;</button></h2>
+
+        <div id="admin-login-form">
+            <div class="admin-field">
+                <label>Admin Password</label>
+                <input type="password" id="adm-pass" placeholder="Enter password...">
+            </div>
+            <div class="admin-actions">
+                <button class="btn-save" id="btn-adm-login">Login</button>
+                <button class="btn-close" id="btn-adm-cancel1">Cancel</button>
+            </div>
+        </div>
+
+        <div id="admin-config" style="display:none">
+            <div class="admin-field">
+                <label>Groq API Key</label>
+                <input type="text" id="adm-key">
+            </div>
+            <div class="admin-field">
+                <label>Models (one per line, first = primary)</label>
+                <textarea id="adm-models"></textarea>
+            </div>
+            <div class="admin-field">
+                <label>API URL</label>
+                <input type="text" id="adm-url">
+            </div>
+            <div class="admin-field">
+                <label>New Admin Password (leave blank to keep)</label>
+                <input type="password" id="adm-newpass" placeholder="New password...">
+            </div>
+            <div class="admin-actions">
+                <button class="btn-save" id="btn-adm-save">Save</button>
+                <button class="btn-close" id="btn-adm-close">Close</button>
+            </div>
+            <div id="admin-msg"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ VIDEO CALL ═══ -->
+<div id="incoming-call-overlay"></div>
+<div id="incoming-call">
+    <div class="pulse"></div>
+    <div class="caller-avatar" id="caller-avatar">?</div>
+    <div class="caller-name" id="caller-name">Someone</div>
+    <div class="caller-info">Video call incoming...</div>
+    <div class="incoming-actions">
+        <button class="btn-reject-call" id="btn-reject-call" title="Reject"><svg viewBox="0 0 24 24"><path d="M12 9c-3.3 0-6.3.8-8.7 2.2-.7.4-1.1 1.2-1 2l.5 3.4c.1.7.7 1.2 1.4 1.2h2.3c.6 0 1.1-.4 1.2-1l.5-2.5c.1-.5.5-.9 1-.9h5.6c.5 0 .9.4 1 .9l.5 2.5c.1.6.6 1 1.2 1h2.3c.7 0 1.3-.5 1.4-1.2l.5-3.4c.1-.8-.3-1.6-1-2C18.3 9.8 15.3 9 12 9z" fill="currentColor" stroke="none"/><line x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="2.5"/></svg></button>
+        <button class="btn-accept-call" id="btn-accept-call" title="Accept"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></button>
+    </div>
+</div>
+
+<div id="call-overlay">
+    <div class="call-videos">
+        <video id="remote-video" autoplay playsinline></video>
+        <video id="local-video" autoplay playsinline muted></video>
+    </div>
+    <div class="call-header">
+        <span class="call-name" id="call-peer-name">User</span>
+        <span class="call-timer" id="call-timer">00:00</span>
+    </div>
+    <div class="call-subtitles" id="call-subtitles"></div>
+    <div class="call-controls">
+        <button class="call-btn mute" id="btn-mute" title="Mute"><svg viewBox="0 0 24 24"><path d="M12 1a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+        <button class="call-btn cam" id="btn-cam" title="Camera"><svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></button>
+        <button class="call-btn subtitle-btn" id="btn-call-subtitle" title="Live Subtitles"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M7 12h2M11 12h6M7 16h10"/></svg></button>
+        <button class="call-btn hangup" id="btn-hangup" title="End Call"><svg viewBox="0 0 24 24"><path d="M12 9c-3.3 0-6.3.8-8.7 2.2-.7.4-1.1 1.2-1 2l.5 3.4c.1.7.7 1.2 1.4 1.2h2.3c.6 0 1.1-.4 1.2-1l.5-2.5c.1-.5.5-.9 1-.9h5.6c.5 0 .9.4 1 .9l.5 2.5c.1.6.6 1 1.2 1h2.3c.7 0 1.3-.5 1.4-1.2l.5-3.4c.1-.8-.3-1.6-1-2C18.3 9.8 15.3 9 12 9z"/></svg></button>
+    </div>
+</div>
+
+<script>
+(function() {
+var WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
+
+var LANG_CODES = { vi:'VN', en:'EN', ja:'JP', ko:'KR', zh:'CN', fr:'FR', de:'DE', es:'ES', th:'TH', ar:'AR', ru:'RU', pt:'PT', it:'IT', hi:'HI', id:'ID' };
+
+// ═══ i18n ═══
+var I18N = {
+    en: {
+        title: 'TransChat', subtitle: 'Real-time Translation Chat',
+        chooseLang: 'Choose your language',
+        yourName: 'Your Name', enterName: 'Enter your name...', yourLang: 'Your Language',
+        joinChat: 'Join Chat', reconnecting: 'Reconnecting...',
+        online: 'Online', offline: 'Offline',
+        selectUser: 'Select a user to start chatting', clickUser: 'Click on a user in the sidebar',
+        selectUserChat: 'Select a user to chat...', messageTo: 'Message',
+        newMessages: 'New messages', sendImage: 'Send image', videoCall: 'Video call',
+        typing: 'is typing...', typingPlural: 'are typing...', peopleTyping: 'people typing...',
+        settings: 'Settings', logout: 'Logout', notifications: 'Notifications',
+        adminPanel: 'Admin Panel', adminPass: 'Admin Password', login: 'Login', cancel: 'Cancel',
+        save: 'Save', close: 'Close', apiKey: 'Groq API Key',
+        models: 'Models (one per line, first = primary)', apiUrl: 'API URL',
+        newAdminPass: 'New Admin Password (leave blank to keep)', newPassPlaceholder: 'New password...',
+        callIncoming: 'Video call incoming...', endCall: 'End Call', mute: 'Mute', camera: 'Camera',
+        liveSubtitles: 'Live Subtitles', deleteMsg: 'Delete this message?',
+        askAI: 'Ask AI about this conversation...', aiAssistant: 'AI Assistant', ask: 'Ask',
+        enterPassword: 'Enter password...'
+    },
+    vi: {
+        title: 'TransChat', subtitle: 'Chat dịch thuật thời gian thực',
+        chooseLang: 'Chọn ngôn ngữ của bạn',
+        yourName: 'Tên của bạn', enterName: 'Nhập tên của bạn...', yourLang: 'Ngôn ngữ',
+        joinChat: 'Tham gia', reconnecting: 'Đang kết nối lại...',
+        online: 'Trực tuyến', offline: 'Ngoại tuyến',
+        selectUser: 'Chọn người dùng để bắt đầu chat', clickUser: 'Nhấn vào người dùng ở thanh bên',
+        selectUserChat: 'Chọn người để nhắn tin...', messageTo: 'Nhắn tin cho',
+        newMessages: 'Tin nhắn mới', sendImage: 'Gửi ảnh', videoCall: 'Gọi video',
+        typing: 'đang nhập...', typingPlural: 'đang nhập...', peopleTyping: 'người đang nhập...',
+        settings: 'Cài đặt', logout: 'Đăng xuất', notifications: 'Thông báo',
+        adminPanel: 'Quản trị', adminPass: 'Mật khẩu Admin', login: 'Đăng nhập', cancel: 'Hủy',
+        save: 'Lưu', close: 'Đóng', apiKey: 'Groq API Key',
+        models: 'Models (mỗi dòng một model, đầu tiên = chính)', apiUrl: 'API URL',
+        newAdminPass: 'Mật khẩu Admin mới (để trống = giữ nguyên)', newPassPlaceholder: 'Mật khẩu mới...',
+        callIncoming: 'Cuộc gọi video đến...', endCall: 'Kết thúc', mute: 'Tắt mic', camera: 'Camera',
+        liveSubtitles: 'Phụ đề trực tiếp', deleteMsg: 'Xóa tin nhắn này?',
+        askAI: 'Hỏi AI về cuộc trò chuyện...', aiAssistant: 'Trợ lý AI', ask: 'Hỏi',
+        enterPassword: 'Nhập mật khẩu...'
+    },
+    ja: {
+        title: 'TransChat', subtitle: 'リアルタイム翻訳チャット',
+        chooseLang: '言語を選択',
+        yourName: '名前', enterName: '名前を入力...', yourLang: '言語',
+        joinChat: '参加', reconnecting: '再接続中...',
+        online: 'オンライン', offline: 'オフライン',
+        selectUser: 'ユーザーを選択してチャット開始', clickUser: 'サイドバーのユーザーをクリック',
+        selectUserChat: 'ユーザーを選択...', messageTo: 'メッセージ',
+        newMessages: '新しいメッセージ', sendImage: '画像送信', videoCall: 'ビデオ通話',
+        typing: '入力中...', typingPlural: '入力中...', peopleTyping: '人が入力中...',
+        settings: '設定', logout: 'ログアウト', notifications: '通知',
+        adminPanel: '管理パネル', adminPass: '管理者パスワード', login: 'ログイン', cancel: 'キャンセル',
+        save: '保存', close: '閉じる', apiKey: 'Groq API Key',
+        models: 'モデル', apiUrl: 'API URL',
+        newAdminPass: '新しいパスワード', newPassPlaceholder: '新パスワード...',
+        callIncoming: 'ビデオ通話着信...', endCall: '終了', mute: 'ミュート', camera: 'カメラ',
+        liveSubtitles: 'ライブ字幕', deleteMsg: 'メッセージを削除しますか？',
+        askAI: 'AIに質問...', aiAssistant: 'AIアシスタント', ask: '質問',
+        enterPassword: 'パスワード...'
+    },
+    ko: {
+        title: 'TransChat', subtitle: '실시간 번역 채팅',
+        chooseLang: '언어를 선택하세요',
+        yourName: '이름', enterName: '이름을 입력하세요...', yourLang: '언어',
+        joinChat: '참가', reconnecting: '재연결 중...',
+        online: '온라인', offline: '오프라인',
+        selectUser: '채팅할 사용자를 선택하세요', clickUser: '사이드바에서 사용자를 클릭하세요',
+        selectUserChat: '사용자를 선택하세요...', messageTo: '메시지',
+        newMessages: '새 메시지', sendImage: '이미지 전송', videoCall: '영상통화',
+        typing: '입력 중...', typingPlural: '입력 중...', peopleTyping: '명이 입력 중...',
+        settings: '설정', logout: '로그아웃', notifications: '알림',
+        adminPanel: '관리자', adminPass: '관리자 비밀번호', login: '로그인', cancel: '취소',
+        save: '저장', close: '닫기', apiKey: 'Groq API Key',
+        models: '모델', apiUrl: 'API URL',
+        newAdminPass: '새 비밀번호', newPassPlaceholder: '새 비밀번호...',
+        callIncoming: '영상통화 수신 중...', endCall: '종료', mute: '음소거', camera: '카메라',
+        liveSubtitles: '실시간 자막', deleteMsg: '이 메시지를 삭제하시겠습니까?',
+        askAI: 'AI에게 질문...', aiAssistant: 'AI 어시스턴트', ask: '질문',
+        enterPassword: '비밀번호...'
+    },
+    zh: {
+        title: 'TransChat', subtitle: '实时翻译聊天',
+        chooseLang: '选择你的语言',
+        yourName: '昵称', enterName: '输入昵称...', yourLang: '语言',
+        joinChat: '加入', reconnecting: '重新连接...',
+        online: '在线', offline: '离线',
+        selectUser: '选择用户开始聊天', clickUser: '点击侧边栏中的用户',
+        selectUserChat: '请选择聊天对象...', messageTo: '发送给',
+        newMessages: '新消息', sendImage: '发送图片', videoCall: '视频通话',
+        typing: '正在输入...', typingPlural: '正在输入...', peopleTyping: '人正在输入...',
+        settings: '设置', logout: '退出', notifications: '通知',
+        adminPanel: '管理面板', adminPass: '管理员密码', login: '登录', cancel: '取消',
+        save: '保存', close: '关闭', apiKey: 'Groq API Key',
+        models: '模型', apiUrl: 'API URL',
+        newAdminPass: '新密码', newPassPlaceholder: '新密码...',
+        callIncoming: '视频通话来电...', endCall: '结束', mute: '静音', camera: '摄像头',
+        liveSubtitles: '实时字幕', deleteMsg: '删除此消息？',
+        askAI: '向AI提问...', aiAssistant: 'AI助手', ask: '提问',
+        enterPassword: '输入密码...'
+    },
+    fr: {
+        title: 'TransChat', subtitle: 'Chat avec traduction en temps réel',
+        chooseLang: 'Choisissez votre langue',
+        yourName: 'Votre nom', enterName: 'Entrez votre nom...', yourLang: 'Langue',
+        joinChat: 'Rejoindre', reconnecting: 'Reconnexion...',
+        online: 'En ligne', offline: 'Hors ligne',
+        selectUser: 'Sélectionnez un utilisateur pour discuter', clickUser: 'Cliquez sur un utilisateur',
+        selectUserChat: 'Sélectionnez un utilisateur...', messageTo: 'Message à',
+        newMessages: 'Nouveaux messages', sendImage: 'Envoyer image', videoCall: 'Appel vidéo',
+        typing: 'écrit...', typingPlural: 'écrivent...', peopleTyping: 'personnes écrivent...',
+        settings: 'Paramètres', logout: 'Déconnexion', notifications: 'Notifications',
+        adminPanel: 'Admin', adminPass: 'Mot de passe admin', login: 'Connexion', cancel: 'Annuler',
+        save: 'Sauver', close: 'Fermer', apiKey: 'Groq API Key',
+        models: 'Modèles', apiUrl: 'API URL',
+        newAdminPass: 'Nouveau mot de passe', newPassPlaceholder: 'Nouveau mdp...',
+        callIncoming: 'Appel vidéo entrant...', endCall: 'Terminer', mute: 'Muet', camera: 'Caméra',
+        liveSubtitles: 'Sous-titres', deleteMsg: 'Supprimer ce message?',
+        askAI: 'Demander à l\'IA...', aiAssistant: 'Assistant IA', ask: 'Demander',
+        enterPassword: 'Mot de passe...'
+    },
+    de: {
+        title: 'TransChat', subtitle: 'Echtzeit-Übersetzungschat',
+        chooseLang: 'Wählen Sie Ihre Sprache',
+        yourName: 'Ihr Name', enterName: 'Name eingeben...', yourLang: 'Sprache',
+        joinChat: 'Beitreten', reconnecting: 'Verbindung wird wiederhergestellt...',
+        online: 'Online', offline: 'Offline',
+        selectUser: 'Benutzer auswählen zum Chatten', clickUser: 'Klicken Sie auf einen Benutzer',
+        selectUserChat: 'Benutzer auswählen...', messageTo: 'Nachricht an',
+        newMessages: 'Neue Nachrichten', sendImage: 'Bild senden', videoCall: 'Videoanruf',
+        typing: 'tippt...', typingPlural: 'tippen...', peopleTyping: 'Personen tippen...',
+        settings: 'Einstellungen', logout: 'Abmelden', notifications: 'Benachrichtigungen',
+        adminPanel: 'Admin', adminPass: 'Admin-Passwort', login: 'Anmelden', cancel: 'Abbrechen',
+        save: 'Speichern', close: 'Schließen', apiKey: 'Groq API Key',
+        models: 'Modelle', apiUrl: 'API URL',
+        newAdminPass: 'Neues Passwort', newPassPlaceholder: 'Neues Passwort...',
+        callIncoming: 'Videoanruf eingehend...', endCall: 'Beenden', mute: 'Stumm', camera: 'Kamera',
+        liveSubtitles: 'Live-Untertitel', deleteMsg: 'Nachricht löschen?',
+        askAI: 'KI fragen...', aiAssistant: 'KI-Assistent', ask: 'Fragen',
+        enterPassword: 'Passwort...'
+    },
+    es: {
+        title: 'TransChat', subtitle: 'Chat con traducción en tiempo real',
+        chooseLang: 'Elige tu idioma',
+        yourName: 'Tu nombre', enterName: 'Ingresa tu nombre...', yourLang: 'Idioma',
+        joinChat: 'Unirse', reconnecting: 'Reconectando...',
+        online: 'En línea', offline: 'Desconectado',
+        selectUser: 'Selecciona un usuario para chatear', clickUser: 'Haz clic en un usuario',
+        selectUserChat: 'Selecciona un usuario...', messageTo: 'Mensaje a',
+        newMessages: 'Nuevos mensajes', sendImage: 'Enviar imagen', videoCall: 'Videollamada',
+        typing: 'escribiendo...', typingPlural: 'escribiendo...', peopleTyping: 'personas escribiendo...',
+        settings: 'Ajustes', logout: 'Cerrar sesión', notifications: 'Notificaciones',
+        adminPanel: 'Admin', adminPass: 'Contraseña admin', login: 'Entrar', cancel: 'Cancelar',
+        save: 'Guardar', close: 'Cerrar', apiKey: 'Groq API Key',
+        models: 'Modelos', apiUrl: 'API URL',
+        newAdminPass: 'Nueva contraseña', newPassPlaceholder: 'Nueva contraseña...',
+        callIncoming: 'Videollamada entrante...', endCall: 'Terminar', mute: 'Silenciar', camera: 'Cámara',
+        liveSubtitles: 'Subtítulos', deleteMsg: '¿Eliminar este mensaje?',
+        askAI: 'Preguntar a la IA...', aiAssistant: 'Asistente IA', ask: 'Preguntar',
+        enterPassword: 'Contraseña...'
+    },
+    th: {
+        title: 'TransChat', subtitle: 'แชทแปลภาษาแบบเรียลไทม์',
+        chooseLang: 'เลือกภาษาของคุณ',
+        yourName: 'ชื่อของคุณ', enterName: 'ใส่ชื่อ...', yourLang: 'ภาษา',
+        joinChat: 'เข้าร่วม', reconnecting: 'กำลังเชื่อมต่อ...',
+        online: 'ออนไลน์', offline: 'ออฟไลน์',
+        selectUser: 'เลือกผู้ใช้เพื่อเริ่มแชท', clickUser: 'คลิกผู้ใช้ในแถบด้านข้าง',
+        selectUserChat: 'เลือกผู้ใช้...', messageTo: 'ข้อความถึง',
+        newMessages: 'ข้อความใหม่', sendImage: 'ส่งรูป', videoCall: 'วิดีโอคอล',
+        typing: 'กำลังพิมพ์...', typingPlural: 'กำลังพิมพ์...', peopleTyping: 'คนกำลังพิมพ์...',
+        settings: 'ตั้งค่า', logout: 'ออกจากระบบ', notifications: 'การแจ้งเตือน',
+        adminPanel: 'ผู้ดูแล', adminPass: 'รหัสผ่าน', login: 'เข้าสู่ระบบ', cancel: 'ยกเลิก',
+        save: 'บันทึก', close: 'ปิด', apiKey: 'Groq API Key',
+        models: 'โมเดล', apiUrl: 'API URL',
+        newAdminPass: 'รหัสผ่านใหม่', newPassPlaceholder: 'รหัสผ่านใหม่...',
+        callIncoming: 'มีสายวิดีโอเข้า...', endCall: 'วางสาย', mute: 'ปิดเสียง', camera: 'กล้อง',
+        liveSubtitles: 'คำบรรยาย', deleteMsg: 'ลบข้อความนี้?',
+        askAI: 'ถาม AI...', aiAssistant: 'ผู้ช่วย AI', ask: 'ถาม',
+        enterPassword: 'รหัสผ่าน...'
+    },
+    ru: {
+        title: 'TransChat', subtitle: 'Чат с переводом в реальном времени',
+        chooseLang: 'Выберите язык',
+        yourName: 'Ваше имя', enterName: 'Введите имя...', yourLang: 'Язык',
+        joinChat: 'Войти', reconnecting: 'Переподключение...',
+        online: 'Онлайн', offline: 'Офлайн',
+        selectUser: 'Выберите пользователя для чата', clickUser: 'Нажмите на пользователя',
+        selectUserChat: 'Выберите пользователя...', messageTo: 'Сообщение',
+        newMessages: 'Новые сообщения', sendImage: 'Отправить фото', videoCall: 'Видеозвонок',
+        typing: 'печатает...', typingPlural: 'печатают...', peopleTyping: 'чел. печатают...',
+        settings: 'Настройки', logout: 'Выход', notifications: 'Уведомления',
+        adminPanel: 'Админ', adminPass: 'Пароль админа', login: 'Войти', cancel: 'Отмена',
+        save: 'Сохранить', close: 'Закрыть', apiKey: 'Groq API Key',
+        models: 'Модели', apiUrl: 'API URL',
+        newAdminPass: 'Новый пароль', newPassPlaceholder: 'Новый пароль...',
+        callIncoming: 'Входящий видеозвонок...', endCall: 'Завершить', mute: 'Без звука', camera: 'Камера',
+        liveSubtitles: 'Субтитры', deleteMsg: 'Удалить сообщение?',
+        askAI: 'Спросить ИИ...', aiAssistant: 'ИИ Ассистент', ask: 'Спросить',
+        enterPassword: 'Пароль...'
+    },
+    ar: {
+        title: 'TransChat', subtitle: 'دردشة مترجمة في الوقت الحقيقي',
+        chooseLang: 'اختر لغتك',
+        yourName: 'اسمك', enterName: 'أدخل اسمك...', yourLang: 'اللغة',
+        joinChat: 'انضمام', reconnecting: 'إعادة الاتصال...',
+        online: 'متصل', offline: 'غير متصل',
+        selectUser: 'اختر مستخدمًا للدردشة', clickUser: 'انقر على مستخدم',
+        selectUserChat: 'اختر مستخدمًا...', messageTo: 'رسالة إلى',
+        newMessages: 'رسائل جديدة', sendImage: 'إرسال صورة', videoCall: 'مكالمة فيديو',
+        typing: 'يكتب...', typingPlural: 'يكتبون...', peopleTyping: 'أشخاص يكتبون...',
+        settings: 'إعدادات', logout: 'خروج', notifications: 'إشعارات',
+        adminPanel: 'المشرف', adminPass: 'كلمة مرور المشرف', login: 'دخول', cancel: 'إلغاء',
+        save: 'حفظ', close: 'إغلاق', apiKey: 'Groq API Key',
+        models: 'النماذج', apiUrl: 'API URL',
+        newAdminPass: 'كلمة مرور جديدة', newPassPlaceholder: 'كلمة مرور جديدة...',
+        callIncoming: 'مكالمة فيديو واردة...', endCall: 'إنهاء', mute: 'كتم', camera: 'كاميرا',
+        liveSubtitles: 'ترجمة مباشرة', deleteMsg: 'حذف هذه الرسالة؟',
+        askAI: 'اسأل الذكاء الاصطناعي...', aiAssistant: 'مساعد AI', ask: 'اسأل',
+        enterPassword: 'كلمة المرور...'
+    },
+    pt: {
+        title: 'TransChat', subtitle: 'Chat com tradução em tempo real',
+        chooseLang: 'Escolha seu idioma',
+        yourName: 'Seu nome', enterName: 'Digite seu nome...', yourLang: 'Idioma',
+        joinChat: 'Entrar', reconnecting: 'Reconectando...',
+        online: 'Online', offline: 'Offline',
+        selectUser: 'Selecione um usuário para conversar', clickUser: 'Clique em um usuário',
+        selectUserChat: 'Selecione um usuário...', messageTo: 'Mensagem para',
+        newMessages: 'Novas mensagens', sendImage: 'Enviar imagem', videoCall: 'Videochamada',
+        typing: 'digitando...', typingPlural: 'digitando...', peopleTyping: 'pessoas digitando...',
+        settings: 'Configurações', logout: 'Sair', notifications: 'Notificações',
+        adminPanel: 'Admin', adminPass: 'Senha admin', login: 'Entrar', cancel: 'Cancelar',
+        save: 'Salvar', close: 'Fechar', apiKey: 'Groq API Key',
+        models: 'Modelos', apiUrl: 'API URL',
+        newAdminPass: 'Nova senha', newPassPlaceholder: 'Nova senha...',
+        callIncoming: 'Videochamada recebida...', endCall: 'Encerrar', mute: 'Mudo', camera: 'Câmera',
+        liveSubtitles: 'Legendas ao vivo', deleteMsg: 'Excluir esta mensagem?',
+        askAI: 'Perguntar à IA...', aiAssistant: 'Assistente IA', ask: 'Perguntar',
+        enterPassword: 'Senha...'
+    }
+};
+
+function t(key) {
+    var lang = myLang || inpLang.value || 'en';
+    return (I18N[lang] && I18N[lang][key]) || (I18N.en[key]) || key;
+}
+
+function applyI18n() {
+    var lang = myLang || inpLang.value || 'en';
+    // Login screen
+    document.querySelector('.login-logo h1').textContent = t('title');
+    document.querySelector('.login-logo p').textContent = t('subtitle');
+    var lblName = $('lbl-your-name');
+    var lblLang = $('lbl-choose-lang');
+    if (lblName) lblName.textContent = t('yourName');
+    if (lblLang) lblLang.textContent = t('chooseLang');
+    inpName.placeholder = t('enterName');
+    btnJoin.textContent = t('joinChat');
+    // Chat screen
+    statusBar.textContent = t('reconnecting');
+    newMsgBadge.textContent = t('newMessages');
+    // Empty conv
+    var ec = $('empty-conv');
+    if (ec) {
+        var emptySpans = ec.querySelectorAll('span');
+        if (emptySpans[0]) emptySpans[0].textContent = t('selectUser');
+        if (emptySpans[1]) emptySpans[1].textContent = t('clickUser');
+    }
+    // Buttons
+    $('btn-admin').title = t('settings');
+    $('btn-logout').title = t('logout');
+    $('btn-notif').title = t('notifications');
+    $('btn-attach').title = t('sendImage');
+    $('conv-call-btn').title = t('videoCall');
+    // Call
+    $('btn-mute').title = t('mute');
+    $('btn-cam').title = t('camera');
+    $('btn-call-subtitle').title = t('liveSubtitles');
+    $('btn-hangup').title = t('endCall');
+    // Incoming call
+    document.querySelector('.caller-info').textContent = t('callIncoming');
+    // Admin
+    document.querySelector('#admin-modal h2 span').textContent = t('adminPanel');
+    document.querySelector('#admin-login-form label').textContent = t('adminPass');
+    admPass.placeholder = t('enterPassword');
+    $('btn-adm-login').textContent = t('login');
+    $('btn-adm-cancel1').textContent = t('cancel');
+    $('btn-adm-save').textContent = t('save');
+    $('btn-adm-close').textContent = t('close');
+    // AI
+    var aiInput = $('ai-input');
+    if (aiInput) aiInput.placeholder = t('askAI');
+    var aiSend = $('ai-send');
+    if (aiSend) aiSend.textContent = t('ask');
+    // Input placeholder
+    if (!activeConv) {
+        msgInput.placeholder = t('selectUserChat');
+    }
+}
+
+// DOM
+var $ = function(id) { return document.getElementById(id); };
+var loginScreen = $('login-screen'), chatScreen = $('chat-screen');
+var inpName = $('inp-name'), inpLang = $('inp-lang'), btnJoin = $('btn-join'), loginError = $('login-error');
+var statusBar = $('status-bar'), myBadge = $('my-badge');
+var btnMenu = $('btn-menu'), sidebar = $('sidebar'), sidebarOverlay = $('sidebar-overlay');
+var onlineLabel = $('online-label'), offlineLabel = $('offline-label');
+var onlineList = $('online-list'), offlineList = $('offline-list');
+var messagesWrap = $('messages-wrap'), newMsgBadge = $('new-msg-badge');
+var typingBar = $('typing-bar'), typingText = $('typing-text');
+var msgInput = $('msg-input'), btnSend = $('btn-send');
+var btnAttach = $('btn-attach'), fileInput = $('file-input');
+var imgPreviewBar = $('img-preview-bar'), imgPreviewThumb = $('img-preview-thumb'), imgPreviewName = $('img-preview-name'), imgPreviewRemove = $('img-preview-remove');
+var lightbox = $('lightbox'), lightboxImg = $('lightbox-img');
+var btnLogout = $('btn-logout');
+var adminOverlay = $('admin-overlay'), adminLoginForm = $('admin-login-form'), adminConfig = $('admin-config');
+var admPass = $('adm-pass'), admKey = $('adm-key'), admModels = $('adm-models');
+var admUrl = $('adm-url'), admNewpass = $('adm-newpass'), adminMsg = $('admin-msg');
+
+var ws, myName, myLang, adminLoggedPass = null;
+var typingUsers = {};
+var typingTimeout = null;
+var lastTypingSent = 0;
+var msgStatuses = {}; // id -> status element
+var pendingFile = null;
+var activeConv = null; // null = group, string = username for private chat
+var allMessages = []; // store all messages for filtering
+var unreadCounts = {}; // username or 'group' -> count
+
+// ═══ AUTO LOGIN ═══
+var saved = null;
+try { saved = JSON.parse(localStorage.getItem('transchat_user')); } catch {}
+if (saved && saved.name) {
+    myName = saved.name;
+    myLang = saved.lang || 'en';
+    inpName.value = myName;
+    inpLang.value = myLang;
+    applyI18n();
+    connect();
+}
+
+// ═══ LOGIN 2-STEP FLOW ═══
+var LANG_FLAGS = { vi:'🇻🇳', en:'🇬🇧', ja:'🇯🇵', ko:'🇰🇷', zh:'🇨🇳', fr:'🇫🇷', de:'🇩🇪', es:'🇪🇸', th:'🇹🇭', ar:'🇸🇦', ru:'🇷🇺', pt:'🇧🇷' };
+var LANG_NAMES = { vi:'Tiếng Việt', en:'English', ja:'日本語', ko:'한국어', zh:'中文', fr:'Français', de:'Deutsch', es:'Español', th:'ไทย', ar:'العربية', ru:'Русский', pt:'Português' };
+
+var loginStepLang = $('login-step-lang');
+var loginStepName = $('login-step-name');
+var langChosenBack = $('lang-chosen-back');
+var langChosenDisplay = $('lang-chosen-display');
+
+// Handle language button clicks
+document.querySelectorAll('.lang-btn').forEach(function(btn) {
+    btn.onclick = function() {
+        var lang = this.dataset.lang;
+        inpLang.value = lang;
+        myLang = lang;
+        applyI18n();
+        // Transition to step 2
+        loginStepLang.style.display = 'none';
+        loginStepName.style.display = 'block';
+        langChosenDisplay.textContent = LANG_FLAGS[lang] + ' ' + LANG_NAMES[lang];
+        inpName.focus();
+    };
+});
+
+// Back button to go back to language selection
+langChosenBack.onclick = function() {
+    loginStepName.style.display = 'none';
+    loginStepLang.style.display = 'block';
+};
+
+applyI18n(); // initial apply
+
+// ═══ JOIN ═══
+btnJoin.onclick = doJoin;
+inpName.onkeydown = function(e) { if (e.key === 'Enter') doJoin(); };
+
+function doJoin() {
+    var name = inpName.value.trim();
+    if (!name) { showLoginErr(t('enterName')); return; }
+    myName = name;
+    myLang = inpLang.value;
+    localStorage.setItem('transchat_user', JSON.stringify({ name: myName, lang: myLang }));
+    applyI18n();
+    connect();
+}
+
+function showLoginErr(txt) { loginError.textContent = txt; loginError.style.display = 'block'; }
+
+// ═══ WEBSOCKET ═══
+function connect() {
+    ws = new WebSocket(WS_URL);
+    ws.onopen = function() {
+        statusBar.style.display = 'none';
+        ws.send(JSON.stringify({ type: 'join', name: myName, lang: myLang }));
+    };
+    ws.onmessage = function(e) {
+        var m; try { m = JSON.parse(e.data); } catch { return; }
+        handle(m);
+    };
+    ws.onclose = function() {
+        if (chatScreen.style.display === 'flex') {
+            statusBar.style.display = 'block';
+            setTimeout(connect, 3000);
+        } else {
+            showLoginErr('Cannot connect to server');
+        }
+    };
+    ws.onerror = function() { ws.close(); };
+}
+
+function wsSend(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+
+// ═══ MESSAGE HANDLER ═══
+function handle(m) {
+    if (m.type === 'error') { showLoginErr(m.text); return; }
+    if (m.type === 'joined') {
+        loginScreen.style.display = 'none';
+        chatScreen.style.display = 'flex';
+        myBadge.textContent = myName + ' (' + (LANG_CODES[myLang] || myLang) + ')';
+        return;
+    }
+    if (m.type === 'history') { renderHistory(m.messages); return; }
+    if (m.type === 'users') { renderUsers(m.users); return; }
+    if (m.type === 'system') { return; } // no group view, skip system messages
+    if (m.type === 'chat') { appendChat(m); return; }
+    if (m.type === 'image') { appendImage(m); return; }
+    if (m.type === 'status') { updateStatus(m); return; }
+    if (m.type === 'deleted') { removeMsg(m.id); return; }
+    if (m.type === 'deleted-user') { removeMsgsByUser(m.user); return; }
+    if (m.type === 'typing') { handleTyping(m); return; }
+    if (m.type === 'admin-auth') { handleAdminAuth(m); return; }
+    if (m.type === 'admin-result') { handleAdminResult(m); return; }
+    // Video call signaling
+    if (m.type === 'call-request') { handleIncomingCall(m); return; }
+    if (m.type === 'call-accept') { handleCallAccepted(m); return; }
+    if (m.type === 'call-reject') { handleCallRejected(m); return; }
+    if (m.type === 'call-end') { handleCallEnded(m); return; }
+    if (m.type === 'webrtc-offer') { handleOffer(m); return; }
+    if (m.type === 'webrtc-answer') { handleAnswer(m); return; }
+    if (m.type === 'webrtc-ice') { handleIce(m); return; }
+    if (m.type === 'call-subtitle') { handleCallSubtitle(m); return; }
+}
+
+// ═══ RENDER USERS ═══
+function renderUsers(users) {
+    var on = users.filter(function(u) { return u.online; });
+    var off = users.filter(function(u) { return !u.online; });
+    onlineLabel.textContent = t('online') + ' (' + on.length + ')';
+    offlineLabel.textContent = t('offline') + ' (' + off.length + ')';
+    onlineList.innerHTML = '';
+    offlineList.innerHTML = '';
+    on.forEach(function(u) { onlineList.appendChild(makeUserItem(u, true)); });
+    off.forEach(function(u) { offlineList.appendChild(makeUserItem(u, false)); });
+}
+
+function makeUserItem(u, online) {
+    var div = document.createElement('div');
+    div.className = 'user-item' + (activeConv === u.name ? ' active' : '');
+    div.dataset.user = u.name;
+    var extra = '';
+    if (!online && u.lastSeen) extra = '<span class="user-seen">' + timeAgo(u.lastSeen) + '</span>';
+    var unread = unreadCounts[u.name] || 0;
+    var unreadHtml = '<span class="unread-badge' + (unread > 0 ? ' show' : '') + '">' + unread + '</span>';
+    var callBtn = '';
+    if (online && u.name !== myName) {
+        callBtn = '<button class="user-call" title="Video call ' + esc(u.name) + '" onclick="event.stopPropagation();startCall(\'' + esc(u.name).replace(/'/g, "\\'") + '\')"><svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></button>';
+    }
+    div.innerHTML =
+        '<div class="user-dot ' + (online ? 'on' : 'off') + '"></div>' +
+        '<span class="user-name">' + esc(u.name) + (u.name === myName ? ' (you)' : '') + '</span>' +
+        '<span class="user-lang">' + (LANG_CODES[u.lang] || u.lang) + '</span>' + extra + unreadHtml + callBtn;
+    if (u.name !== myName) {
+        div.onclick = function() { switchConv(u.name); };
+        div.style.cursor = 'pointer';
+    }
+    return div;
+}
+
+// ═══ CONVERSATIONS ═══
+var convHeader = $('conv-header');
+var convName = $('conv-name');
+var convLang = $('conv-lang');
+var convCallBtn = $('conv-call-btn');
+var emptyConv = $('empty-conv');
+
+function switchConv(target) {
+    activeConv = target;
+    var inputArea = $('input-area');
+    var chatHeader = $('chat-header');
+    // Update UI
+    if (target) {
+        emptyConv.style.display = 'none';
+        convHeader.classList.add('active');
+        chatHeader.classList.add('in-conv');
+        messagesWrap.style.display = 'block';
+        inputArea.style.display = 'flex';
+        convName.textContent = target;
+        convLang.textContent = '';
+        convCallBtn.style.display = 'flex';
+        // Find user lang
+        var items = document.querySelectorAll('.user-item[data-user]');
+        items.forEach(function(el) {
+            if (el.dataset.user === target) {
+                var langEl = el.querySelector('.user-lang');
+                if (langEl) convLang.textContent = langEl.textContent;
+            }
+        });
+        msgInput.placeholder = t('messageTo') + ' ' + target + '...';
+        msgInput.disabled = false;
+        $('btn-send').disabled = false;
+    } else {
+        emptyConv.style.display = 'flex';
+        convHeader.classList.remove('active');
+        chatHeader.classList.remove('in-conv');
+        messagesWrap.style.display = 'none';
+        inputArea.style.display = 'none';
+        convCallBtn.style.display = 'none';
+        msgInput.placeholder = t('selectUserChat');
+        msgInput.disabled = true;
+        $('btn-send').disabled = true;
+    }
+    // Clear unread for this conv
+    if (target) { unreadCounts[target] = 0; }
+    // Update active states in sidebar
+    document.querySelectorAll('.user-item[data-user]').forEach(function(el) {
+        el.classList.toggle('active', el.dataset.user === target);
+    });
+    // Re-render messages for this conversation
+    renderConvMessages();
+    updateUnreadBadges();
+    // Mobile: toggle between sidebar view and chat view
+    var chatBody = $('chat-body');
+    if (target) {
+        chatBody.classList.add('conv-open');
+    } else {
+        chatBody.classList.remove('conv-open');
+    }
+    // Legacy: close old sidebar overlay
+    sidebar.classList.remove('open');
+    sidebarOverlay.classList.remove('show');
+}
+
+function renderConvMessages() {
+    messagesWrap.innerHTML = '';
+    lastMsgFrom = null; lastMsgTs = 0;
+    if (!activeConv) return; // no conv selected, nothing to render
+    var filtered = allMessages.filter(function(m) {
+        // private: messages between me and activeConv
+        return (m.from === activeConv && m.to === myName) || (m.from === myName && m.to === activeConv) || (m.isOwn && m.to === activeConv);
+    });
+    filtered.forEach(function(m) {
+        m.isHistory = true;
+        if (m.type === 'image' || m.msgType === 'image') { appendImage(m); }
+        else { appendChat(m); }
+    });
+    scrollDown();
+}
+
+$('conv-back').onclick = function() {
+    switchConv(null);
+};
+$('conv-call-btn').onclick = function() { if (activeConv) startCall(activeConv); };
+window.switchConv = switchConv;
+
+// ═══ MESSAGES ═══
+function renderHistory(msgs) {
+    allMessages = [];
+    msgs.forEach(function(m) {
+        m.isHistory = true;
+        allMessages.push(m);
+    });
+    renderConvMessages();
+}
+
+var lastMsgFrom = null, lastMsgTs = 0;
+
+function appendChat(msg) {
+    // Store message if not a re-render
+    if (!msg.isHistory) {
+        allMessages.push(msg);
+        // Check if message belongs to active conversation
+        var belongsToActive = msgBelongsToConv(msg, activeConv);
+        if (!belongsToActive) {
+            // Increment unread for the sender
+            var convKey = msg.from;
+            unreadCounts[convKey] = (unreadCounts[convKey] || 0) + 1;
+            updateUnreadBadges();
+            return; // don't render
+        }
+    }
+
+    var grouped = (msg.from === lastMsgFrom && msg.ts - lastMsgTs < 120000);
+    lastMsgFrom = msg.from;
+    lastMsgTs = msg.ts;
+
+    var div = document.createElement('div');
+    div.className = 'msg' + (msg.isOwn ? ' own' : '') + (grouped ? ' grouped' : '');
+    div.dataset.from = msg.from;
+    div.dataset.ts = msg.ts;
+    div.dataset.id = msg.id;
+    if (msg.isHistory) div.style.animation = 'none';
+
+    var initials = msg.from.charAt(0).toUpperCase();
+    var nameHtml = '<div class="msg-name">' + esc(msg.from) + ' <span style="color:var(--text-3);font-weight:400">' + (LANG_CODES[msg.fromLang] || '') + '</span></div>';
+
+    var statusHtml = '';
+    if (msg.isOwn) {
+        var cls = msg.status === 'read' ? ' read' : '';
+        var checks = msg.status === 'sent' ? '&#10003;' : '&#10003;&#10003;';
+        statusHtml = '<span class="msg-status' + cls + '" data-status-id="' + msg.id + '">' + checks + '</span>';
+    }
+
+    var modelHtml = '';
+    if (msg.model && !msg.isOwn) {
+        var short = msg.model.split('/').pop().split('-').slice(0, 2).join('-');
+        modelHtml = '<span class="msg-model">' + esc(short) + '</span>';
+    }
+
+    var originalHtml = '';
+    if (msg.original) {
+        originalHtml = '<div class="original-text">' + esc(msg.original) + '</div>';
+    }
+
+    div.innerHTML =
+        '<div class="avatar">' + initials + '</div>' +
+        '<div class="msg-body">' +
+            nameHtml +
+            '<div class="bubble">' + esc(msg.text) + '</div>' +
+            originalHtml +
+            '<div class="msg-footer">' +
+                '<span class="msg-time">' + formatTime(msg.ts) + '</span>' +
+                statusHtml + modelHtml +
+                (msg.isOwn ? '<button class="msg-delete" onclick="deleteMsg(\'' + msg.id + '\')" title="Delete">&times;</button>' : '') +
+            '</div>' +
+        '</div>';
+
+    var atBottom = isNearBottom();
+    messagesWrap.appendChild(div);
+
+    if (atBottom || msg.isOwn) {
+        scrollDown();
+    } else if (!msg.isHistory) {
+        newMsgBadge.style.display = 'block';
+    }
+
+    if (!msg.isOwn && !msg.isHistory && document.hasFocus()) {
+        wsSend({ type: 'read', id: msg.id });
+    }
+    if (!msg.isOwn && !msg.isHistory) showNotification(msg.from, msg.text);
+}
+
+function msgBelongsToConv(m, conv) {
+    if (!conv) return false; // no conv selected = don't show anything
+    // Show messages between me and the selected user
+    return (m.from === conv && m.to === myName) || (m.from === myName && m.to === conv) || (m.isOwn && m.to === conv);
+}
+
+function updateUnreadBadges() {
+    document.querySelectorAll('.user-item[data-user]').forEach(function(el) {
+        var badge = el.querySelector('.unread-badge');
+        if (badge) {
+            var c = unreadCounts[el.dataset.user] || 0;
+            badge.textContent = c;
+            badge.classList.toggle('show', c > 0);
+        }
+    });
+}
+
+function appendSystem(text, ts) {
+    var div = document.createElement('div');
+    div.className = 'system-msg';
+    div.innerHTML = '<div class="system-bubble">' + esc(text) + (ts ? ' <span style="opacity:0.6">' + formatTime(ts) + '</span>' : '') + '</div>';
+    messagesWrap.appendChild(div);
+    lastMsgFrom = null;
+    if (isNearBottom()) scrollDown();
+}
+
+function updateStatus(m) {
+    var el = document.querySelector('[data-status-id="' + m.id + '"]');
+    if (!el) return;
+    if (m.status === 'delivered') { el.innerHTML = '&#10003;&#10003;'; }
+    if (m.status === 'read') { el.innerHTML = '&#10003;&#10003;'; el.classList.add('read'); }
+}
+
+// ═══ TYPING ═══
+function handleTyping(m) {
+    // Only show typing for the active conversation
+    if (m.to) {
+        // Private typing - only show if we're in that person's conv
+        if (activeConv !== m.from) return;
+    } else {
+        // Group typing - only show if we're in group view
+        if (activeConv !== null) return;
+    }
+    if (m.active) {
+        typingUsers[m.from] = Date.now();
+    } else {
+        delete typingUsers[m.from];
+    }
+    showTyping();
+}
+
+function showTyping() {
+    var names = Object.keys(typingUsers);
+    // Remove stale (>4s)
+    var now = Date.now();
+    names = names.filter(function(n) { return now - typingUsers[n] < 4000; });
+    if (names.length === 0) {
+        typingBar.style.display = 'none';
+    } else {
+        typingBar.style.display = 'flex';
+        if (names.length === 1) typingText.textContent = names[0] + ' ' + t('typing');
+        else if (names.length === 2) typingText.textContent = names[0] + ' & ' + names[1] + ' ' + t('typingPlural');
+        else typingText.textContent = names.length + ' ' + t('peopleTyping');
+    }
+}
+
+setInterval(showTyping, 2000);
+
+// ═══ SENDING ═══
+function doSend() {
+    if (!activeConv) return; // must select a user first
+    var text = msgInput.value.trim();
+    if (pendingFile) {
+        uploadAndSend(pendingFile, text);
+        return;
+    }
+    if (!text) return;
+    var payload = { type: 'chat', text: text, to: activeConv };
+    wsSend(payload);
+    msgInput.value = '';
+    msgInput.style.height = 'auto';
+    wsSend({ type: 'typing', active: false, to: activeConv });
+}
+
+btnSend.onclick = doSend;
+msgInput.onkeydown = function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
+};
+
+// Auto-resize textarea
+msgInput.oninput = function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+
+    // Typing indicator
+    var now = Date.now();
+    if (now - lastTypingSent > 2000) {
+        var typPayload = { type: 'typing', active: true };
+        if (activeConv) typPayload.to = activeConv;
+        wsSend(typPayload);
+        lastTypingSent = now;
+    }
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(function() {
+        var typOff = { type: 'typing', active: false };
+        if (activeConv) typOff.to = activeConv;
+        wsSend(typOff);
+    }, 2500);
+};
+
+// ═══ SCROLL ═══
+function isNearBottom() { return messagesWrap.scrollHeight - messagesWrap.scrollTop - messagesWrap.clientHeight < 100; }
+function scrollDown() { messagesWrap.scrollTop = messagesWrap.scrollHeight; }
+
+messagesWrap.onscroll = function() {
+    if (isNearBottom()) newMsgBadge.style.display = 'none';
+};
+newMsgBadge.onclick = function() { scrollDown(); newMsgBadge.style.display = 'none'; };
+
+// Read receipts on focus
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        var msgs = messagesWrap.querySelectorAll('.msg:not(.own)');
+        if (msgs.length) {
+            var last = msgs[msgs.length - 1];
+            if (last.dataset.id) wsSend({ type: 'read', id: last.dataset.id });
+        }
+    }
+});
+
+// ═══ SIDEBAR (mobile) ═══
+btnMenu.onclick = function() { sidebar.classList.add('open'); sidebarOverlay.classList.add('show'); };
+sidebarOverlay.onclick = function() { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('show'); };
+
+// ═══ IMAGE MESSAGES ═══
+function appendImage(msg) {
+    // Store message if not a re-render
+    if (!msg.isHistory) {
+        msg.msgType = 'image';
+        allMessages.push(msg);
+        var belongsToActive = msgBelongsToConv(msg, activeConv);
+        if (!belongsToActive) {
+            var convKey = msg.from;
+            unreadCounts[convKey] = (unreadCounts[convKey] || 0) + 1;
+            updateUnreadBadges();
+            return;
+        }
+    }
+
+    var grouped = (msg.from === lastMsgFrom && msg.ts - lastMsgTs < 120000);
+    lastMsgFrom = msg.from;
+    lastMsgTs = msg.ts;
+
+    var div = document.createElement('div');
+    div.className = 'msg' + (msg.isOwn ? ' own' : '') + (grouped ? ' grouped' : '');
+    div.dataset.id = msg.id;
+    if (msg.isHistory) div.style.animation = 'none';
+
+    var initials = msg.from.charAt(0).toUpperCase();
+    var nameHtml = '<div class="msg-name">' + esc(msg.from) + ' <span style="color:var(--text-3);font-weight:400">' + (LANG_CODES[msg.fromLang] || '') + '</span></div>';
+
+    var statusHtml = '';
+    if (msg.isOwn) {
+        var cls = msg.status === 'read' ? ' read' : '';
+        var checks = msg.status === 'sent' ? '&#10003;' : '&#10003;&#10003;';
+        statusHtml = '<span class="msg-status' + cls + '" data-status-id="' + msg.id + '">' + checks + '</span>';
+    }
+
+    var captionHtml = '';
+    if (msg.caption) captionHtml = '<div class="msg-caption">' + esc(msg.caption) + '</div>';
+    var origHtml = '';
+    if (msg.originalCaption) origHtml = '<div class="original-text">' + esc(msg.originalCaption) + '</div>';
+
+    div.innerHTML =
+        '<div class="avatar">' + initials + '</div>' +
+        '<div class="msg-body">' +
+            nameHtml +
+            '<div class="bubble" style="padding:6px"><img class="msg-img" src="' + esc(msg.url) + '" loading="lazy" onclick="openLightbox(this.src)">' + captionHtml + '</div>' +
+            origHtml +
+            '<div class="msg-footer">' +
+                '<span class="msg-time">' + formatTime(msg.ts) + '</span>' +
+                statusHtml +
+                (msg.isOwn ? '<button class="msg-delete" onclick="deleteMsg(\'' + msg.id + '\')" title="Delete">&times;</button>' : '') +
+            '</div>' +
+        '</div>';
+
+    var atBottom = isNearBottom();
+    messagesWrap.appendChild(div);
+    if (atBottom || msg.isOwn) scrollDown();
+    else if (!msg.isHistory) newMsgBadge.style.display = 'block';
+    if (!msg.isOwn && !msg.isHistory && document.hasFocus()) wsSend({ type: 'read', id: msg.id });
+    if (!msg.isOwn && !msg.isHistory) showNotification(msg.from, msg.caption ? '[Photo] ' + msg.caption : '[Photo]');
+}
+
+function openLightbox(src) {
+    lightboxImg.src = src;
+    lightbox.style.display = 'flex';
+}
+
+// ═══ DELETE MESSAGE ═══
+function deleteMsg(id) {
+    if (!confirm(t('deleteMsg'))) return;
+    wsSend({ type: 'delete', id: id });
+}
+function removeMsg(id) {
+    var el = document.querySelector('.msg[data-id="' + id + '"]');
+    if (el) {
+        el.style.transition = 'opacity 0.3s, transform 0.3s';
+        el.style.opacity = '0';
+        el.style.transform = 'scale(0.95)';
+        setTimeout(function() { el.remove(); }, 300);
+    }
+}
+
+function clearUserMsgs(userName) {
+    var label = userName === myName ? 'Delete ALL your messages? (permanent)' : 'Hide all messages from ' + userName + '?';
+    if (!confirm(label)) return;
+    wsSend({ type: 'delete-user-msgs', user: userName });
+    if (userName !== myName) {
+        // Immediately hide from view for other users' messages
+        removeMsgsByUser(userName);
+    }
+}
+
+function removeMsgsByUser(userName) {
+    var msgs = messagesWrap.querySelectorAll('.msg[data-from="' + userName + '"]');
+    msgs.forEach(function(el) {
+        el.style.transition = 'opacity 0.3s, transform 0.3s';
+        el.style.opacity = '0';
+        el.style.transform = 'scale(0.95)';
+        setTimeout(function() { el.remove(); }, 300);
+    });
+}
+
+// ═══ IMAGE UPLOAD ═══
+btnAttach.onclick = function() { fileInput.click(); };
+fileInput.onchange = function() {
+    var file = this.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { alert('Only images allowed'); return; }
+    if (file.size > 10 * 1024 * 1024) { alert('Max 10MB'); return; }
+    pendingFile = file;
+    imgPreviewThumb.src = URL.createObjectURL(file);
+    imgPreviewName.textContent = file.name;
+    imgPreviewBar.style.display = 'flex';
+    fileInput.value = '';
+    msgInput.focus();
+};
+imgPreviewRemove.onclick = function() {
+    pendingFile = null;
+    imgPreviewBar.style.display = 'none';
+    imgPreviewThumb.src = '';
+};
+
+function uploadAndSend(file, caption) {
+    if (!activeConv) return;
+    var fd = new FormData();
+    fd.append('file', file);
+    btnSend.disabled = true;
+    fetch('/upload', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.error) { alert(data.error); return; }
+        wsSend({ type: 'image', url: data.url, caption: caption || '', to: activeConv });
+        msgInput.value = '';
+        msgInput.style.height = 'auto';
+        pendingFile = null;
+        imgPreviewBar.style.display = 'none';
+        imgPreviewThumb.src = '';
+    })
+    .catch(function(e) { alert('Upload failed: ' + e.message); })
+    .finally(function() { btnSend.disabled = false; });
+}
+
+// ═══ LOGOUT ═══
+btnLogout.onclick = function() {
+    localStorage.removeItem('transchat_user');
+    if (ws) ws.close();
+    chatScreen.style.display = 'none';
+    loginScreen.style.display = 'flex';
+    messagesWrap.innerHTML = '';
+    inpName.value = '';
+    inpName.focus();
+};
+
+// ═══ MOBILE: fix keyboard pushing layout ═══
+if ('visualViewport' in window) {
+    visualViewport.addEventListener('resize', function() {
+        var offset = window.innerHeight - visualViewport.height;
+        var inputArea = document.getElementById('input-area');
+        var previewBar = document.getElementById('img-preview-bar');
+        if (inputArea) inputArea.style.paddingBottom = (offset > 50 ? '8px' : '10px');
+        // Scroll to bottom when keyboard opens
+        if (offset > 50) setTimeout(scrollDown, 100);
+    });
+}
+
+// ═══ PUSH NOTIFICATIONS & SOUND ═══
+var notifEnabled = false;
+var soundEnabled = true; // browser sound always on by default
+
+// Generate notification sound using Web Audio API (Facebook-style pop)
+var audioCtx = null;
+function playNotifSound() {
+    if (!soundEnabled) return;
+    try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // First pop tone
+        var osc1 = audioCtx.createOscillator();
+        var gain1 = audioCtx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(830, audioCtx.currentTime);
+        osc1.frequency.setValueAtTime(990, audioCtx.currentTime + 0.08);
+        gain1.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        osc1.start(audioCtx.currentTime);
+        osc1.stop(audioCtx.currentTime + 0.15);
+
+        // Second pop tone (higher, slight delay)
+        var osc2 = audioCtx.createOscillator();
+        var gain2 = audioCtx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1200, audioCtx.currentTime + 0.1);
+        gain2.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain2.gain.setValueAtTime(0.25, audioCtx.currentTime + 0.1);
+        gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.start(audioCtx.currentTime + 0.1);
+        osc2.stop(audioCtx.currentTime + 0.25);
+    } catch (e) {}
+}
+
+// Auto-enable notifications if already granted
+if ('Notification' in window && Notification.permission === 'granted') {
+    notifEnabled = true;
+    setTimeout(function() {
+        $('btn-notif').classList.add('active');
+        $('btn-notif').querySelector('.hdr-dot').style.display = 'block';
+    }, 100);
+}
+
+$('btn-notif').onclick = function() {
+    if (!('Notification' in window)) { alert('Browser does not support notifications'); return; }
+    if (Notification.permission === 'granted') {
+        notifEnabled = !notifEnabled;
+        $('btn-notif').classList.toggle('active', notifEnabled);
+        $('btn-notif').querySelector('.hdr-dot').style.display = notifEnabled ? 'block' : 'none';
+        return;
+    }
+    Notification.requestPermission().then(function(p) {
+        notifEnabled = p === 'granted';
+        $('btn-notif').classList.toggle('active', notifEnabled);
+        $('btn-notif').querySelector('.hdr-dot').style.display = notifEnabled ? 'block' : 'none';
+    });
+};
+
+function showNotification(from, text) {
+    // Always play sound in browser for new messages (even when focused)
+    playNotifSound();
+
+    // Show device push notification (like Facebook) when tab not focused
+    if (!document.hasFocus() && 'Notification' in window && Notification.permission === 'granted' && notifEnabled) {
+        try {
+            var n = new Notification('TransChat - ' + from, {
+                body: text.slice(0, 120),
+                icon: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect rx="20" width="100" height="100" fill="#6366f1"/><text x="50" y="68" text-anchor="middle" font-size="50" font-family="Arial" font-weight="bold" fill="white">T</text></svg>'),
+                badge: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect rx="20" width="100" height="100" fill="#6366f1"/><text x="50" y="68" text-anchor="middle" font-size="50" font-family="Arial" font-weight="bold" fill="white">T</text></svg>'),
+                tag: 'transchat-' + from,
+                renotify: true,
+                requireInteraction: false,
+                silent: true // we handle sound ourselves
+            });
+            n.onclick = function() { window.focus(); n.close(); };
+            setTimeout(function() { n.close(); }, 8000);
+        } catch (e) {}
+    }
+
+    // Update page title with unread count when not focused
+    if (!document.hasFocus()) {
+        unreadCount++;
+        document.title = '(' + unreadCount + ') TransChat';
+    }
+}
+
+// Track unread messages & restore title on focus
+var unreadCount = 0;
+var originalTitle = 'TransChat - Real-time Translation';
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        unreadCount = 0;
+        document.title = originalTitle;
+    }
+});
+window.addEventListener('focus', function() {
+    unreadCount = 0;
+    document.title = originalTitle;
+});
+
+// ═══ AI ASSISTANT ═══
+var aiOverlay = $('ai-overlay');
+var aiMessages = $('ai-messages');
+var aiInput = $('ai-input');
+var aiSend = $('ai-send');
+var aiHistory = []; // conversation with AI
+
+$('btn-ai').onclick = function() {
+    aiOverlay.style.display = 'flex';
+    aiInput.focus();
+};
+$('ai-close').onclick = function() { aiOverlay.style.display = 'none'; };
+aiOverlay.addEventListener('click', function(e) { if (e.target === aiOverlay) aiOverlay.style.display = 'none'; });
+
+aiSend.onclick = doAskAI;
+aiInput.onkeydown = function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doAskAI(); } };
+
+function doAskAI() {
+    var q = aiInput.value.trim();
+    if (!q) return;
+    aiInput.value = '';
+    appendAIMsg('user', q);
+
+    // Build context from chat history (last 30 messages)
+    var msgs = messagesWrap.querySelectorAll('.msg:not(.system-msg)');
+    var chatCtx = [];
+    msgs.forEach(function(el) {
+        var from = el.dataset.from || '?';
+        var bubble = el.querySelector('.bubble');
+        if (bubble) {
+            var img = bubble.querySelector('img');
+            chatCtx.push('[' + from + ']: ' + (img ? '[image]' : bubble.textContent.trim()));
+        }
+    });
+    var contextText = chatCtx.slice(-30).join('\n');
+
+    var systemPrompt = 'You are a helpful AI assistant reading a group chat conversation. Here is the recent chat history:\n\n' + contextText + '\n\nAnswer the user\'s question about this conversation. Be concise.';
+
+    aiHistory.push({ role: 'user', content: q });
+
+    var thinkingEl = appendAIMsg('assistant', '...');
+    aiSend.disabled = true;
+
+    // Read config from server via admin or just use stored key
+    var apiKey = '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';
+    var apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
+    var model  = 'llama-3.3-70b-versatile';
+
+    fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+        body: JSON.stringify({
+            model: model,
+            messages: [{ role: 'system', content: systemPrompt }].concat(aiHistory),
+            temperature: 0.7, max_tokens: 1024
+        })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        var reply = d.choices?.[0]?.message?.content?.trim() || 'No response';
+        thinkingEl.textContent = reply;
+        aiHistory.push({ role: 'assistant', content: reply });
+        aiMessages.scrollTop = aiMessages.scrollHeight;
+    })
+    .catch(function(e) { thinkingEl.textContent = 'Error: ' + e.message; })
+    .finally(function() { aiSend.disabled = false; });
+}
+
+function appendAIMsg(role, text) {
+    var div = document.createElement('div');
+    div.style.cssText = 'padding:8px 12px;border-radius:10px;font-size:0.88em;line-height:1.5;white-space:pre-wrap;word-break:break-word;' +
+        (role === 'user'
+            ? 'background:linear-gradient(135deg,#4338ca,#6366f1);color:white;align-self:flex-end;max-width:80%'
+            : 'background:var(--bg-2);color:var(--text);align-self:flex-start;max-width:90%');
+    div.textContent = text;
+    aiMessages.style.display = 'flex';
+    aiMessages.style.flexDirection = 'column';
+    aiMessages.appendChild(div);
+    aiMessages.scrollTop = aiMessages.scrollHeight;
+    return div;
+}
+
+// ═══ ADMIN ═══
+$('btn-admin').onclick = function() { adminOverlay.style.display = 'flex'; adminLoginForm.style.display = 'block'; adminConfig.style.display = 'none'; adminMsg.textContent = ''; admPass.value = ''; };
+$('admin-close-x').onclick = closeAdmin;
+$('btn-adm-cancel1').onclick = closeAdmin;
+$('btn-adm-close').onclick = closeAdmin;
+adminOverlay.onclick = function(e) { if (e.target === adminOverlay) closeAdmin(); };
+
+function closeAdmin() { adminOverlay.style.display = 'none'; adminLoggedPass = null; }
+
+$('btn-adm-login').onclick = function() {
+    var pass = admPass.value.trim();
+    if (!pass) return;
+    adminLoggedPass = pass;
+    wsSend({ type: 'admin-login', pass: pass });
+};
+admPass.onkeydown = function(e) { if (e.key === 'Enter') $('btn-adm-login').click(); };
+
+function handleAdminAuth(m) {
+    if (m.ok && m.cfg) {
+        adminLoginForm.style.display = 'none';
+        adminConfig.style.display = 'block';
+        admKey.value = m.cfg.apiKey || '';
+        admModels.value = (m.cfg.models || []).join('\n');
+        admUrl.value = m.cfg.apiUrl || '';
+        admNewpass.value = '';
+    } else {
+        adminLoggedPass = null;
+        adminMsg.textContent = 'Wrong password';
+        adminMsg.className = 'err';
+        adminLoginForm.style.display = 'block';
+    }
+}
+
+$('btn-adm-save').onclick = function() {
+    var models = admModels.value.split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+    wsSend({
+        type: 'admin-save', pass: adminLoggedPass,
+        cfg: {
+            apiKey: admKey.value.trim(),
+            models: models,
+            apiUrl: admUrl.value.trim(),
+            adminPass: admNewpass.value.trim() || undefined
+        }
+    });
+};
+
+function handleAdminResult(m) {
+    adminMsg.textContent = m.ok ? 'Saved successfully!' : 'Save failed';
+    adminMsg.className = m.ok ? 'ok' : 'err';
+    if (m.ok) setTimeout(function() { adminMsg.textContent = ''; }, 3000);
+}
+
+// ═══ HELPERS ═══
+function esc(s) { if (!s) return ''; return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function formatTime(ts) {
+    var d = new Date(ts);
+    return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+}
+function timeAgo(ts) {
+    var diff = Date.now() - ts;
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+    return Math.floor(diff / 86400000) + 'd ago';
+}
+
+// Expose for inline onclick
+window.openLightbox = openLightbox;
+window.deleteMsg = deleteMsg;
+window.clearUserMsgs = clearUserMsgs;
+window.startCall = startCall;
+
+// Focus name input only if not auto-logged in
+if (!saved || !saved.name) inpName.focus();
+
+// ═══ VIDEO CALL ═══════════════════════════════════════════════════════════════
+var callOverlay = $('call-overlay');
+var incomingCall = $('incoming-call');
+var incomingOverlay = $('incoming-call-overlay');
+var remoteVideo = $('remote-video');
+var localVideo = $('local-video');
+var callPeerName = $('call-peer-name');
+var callTimer = $('call-timer');
+var callSubtitles = $('call-subtitles');
+var btnMute = $('btn-mute');
+var btnCam = $('btn-cam');
+var btnHangup = $('btn-hangup');
+var btnCallSubtitle = $('btn-call-subtitle');
+
+var peerConnection = null;
+var localStream = null;
+var callPeer = null; // name of the person we're calling/in call with
+var callTimerInterval = null;
+var callStartTime = 0;
+var isMuted = false;
+var isCamOff = false;
+var subtitlesEnabled = false;
+var speechRecognition = null;
+
+var ICE_SERVERS = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' }
+];
+
+function startCall(targetName) {
+    if (callPeer) { alert('Already in a call'); return; }
+    callPeer = targetName;
+    callPeerName.textContent = targetName;
+    wsSend({ type: 'call-request', to: targetName });
+    // Show overlay immediately with "Calling..." state
+    callOverlay.classList.add('active');
+    callTimer.textContent = 'Calling...';
+    initLocalStream();
+}
+
+function handleIncomingCall(m) {
+    if (callPeer) {
+        // Already in call, auto reject
+        wsSend({ type: 'call-reject', to: m.from });
+        return;
+    }
+    callPeer = m.from;
+    $('caller-name').textContent = m.from;
+    $('caller-avatar').textContent = m.from.charAt(0).toUpperCase();
+    incomingOverlay.style.display = 'block';
+    incomingCall.style.display = 'block';
+    playRingtone();
+}
+
+$('btn-accept-call').onclick = function() {
+    stopRingtone();
+    incomingCall.style.display = 'none';
+    incomingOverlay.style.display = 'none';
+    callPeerName.textContent = callPeer;
+    callOverlay.classList.add('active');
+    callTimer.textContent = 'Connecting...';
+    wsSend({ type: 'call-accept', to: callPeer });
+    initLocalStream();
+};
+
+$('btn-reject-call').onclick = function() {
+    stopRingtone();
+    incomingCall.style.display = 'none';
+    incomingOverlay.style.display = 'none';
+    wsSend({ type: 'call-reject', to: callPeer });
+    callPeer = null;
+};
+
+function handleCallAccepted(m) {
+    // We initiated the call, now create offer
+    callTimer.textContent = 'Connecting...';
+    createPeerConnection(true);
+}
+
+function handleCallRejected(m) {
+    endCallCleanup();
+    appendSystem(m.from + ' declined the call', Date.now());
+}
+
+function handleCallEnded(m) {
+    endCallCleanup();
+    appendSystem('Call ended with ' + m.from, Date.now());
+}
+
+btnHangup.onclick = function() {
+    if (callPeer) wsSend({ type: 'call-end', to: callPeer });
+    endCallCleanup();
+};
+
+btnMute.onclick = function() {
+    isMuted = !isMuted;
+    btnMute.classList.toggle('active', isMuted);
+    if (localStream) {
+        localStream.getAudioTracks().forEach(function(t) { t.enabled = !isMuted; });
+    }
+};
+
+btnCam.onclick = function() {
+    isCamOff = !isCamOff;
+    btnCam.classList.toggle('active', isCamOff);
+    if (localStream) {
+        localStream.getVideoTracks().forEach(function(t) { t.enabled = !isCamOff; });
+    }
+};
+
+btnCallSubtitle.onclick = function() {
+    subtitlesEnabled = !subtitlesEnabled;
+    btnCallSubtitle.classList.toggle('active', subtitlesEnabled);
+    if (subtitlesEnabled) startSpeechRecognition();
+    else stopSpeechRecognition();
+};
+
+async function initLocalStream() {
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localVideo.srcObject = localStream;
+    } catch (e) {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+            localVideo.srcObject = localStream;
+        } catch (e2) {
+            alert('Cannot access camera/microphone: ' + e2.message);
+            endCallCleanup();
+        }
+    }
+}
+
+function createPeerConnection(isInitiator) {
+    peerConnection = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+    peerConnection.onicecandidate = function(e) {
+        if (e.candidate) {
+            wsSend({ type: 'webrtc-ice', to: callPeer, candidate: e.candidate });
+        }
+    };
+
+    peerConnection.ontrack = function(e) {
+        remoteVideo.srcObject = e.streams[0];
+        startCallTimer();
+    };
+
+    peerConnection.oniceconnectionstatechange = function() {
+        if (peerConnection && (peerConnection.iceConnectionState === 'disconnected' || peerConnection.iceConnectionState === 'failed')) {
+            endCallCleanup();
+        }
+    };
+
+    if (localStream) {
+        localStream.getTracks().forEach(function(track) {
+            peerConnection.addTrack(track, localStream);
+        });
+    }
+
+    if (isInitiator) {
+        peerConnection.createOffer({ offerToReceiveVideo: true, offerToReceiveAudio: true })
+            .then(function(offer) { return peerConnection.setLocalDescription(offer); })
+            .then(function() {
+                wsSend({ type: 'webrtc-offer', to: callPeer, offer: peerConnection.localDescription });
+            });
+    }
+}
+
+function handleOffer(m) {
+    createPeerConnection(false);
+    peerConnection.setRemoteDescription(new RTCSessionDescription(m.offer))
+        .then(function() { return peerConnection.createAnswer(); })
+        .then(function(answer) { return peerConnection.setLocalDescription(answer); })
+        .then(function() {
+            wsSend({ type: 'webrtc-answer', to: m.from, answer: peerConnection.localDescription });
+        });
+}
+
+function handleAnswer(m) {
+    if (peerConnection) {
+        peerConnection.setRemoteDescription(new RTCSessionDescription(m.answer));
+    }
+}
+
+function handleIce(m) {
+    if (peerConnection && m.candidate) {
+        peerConnection.addIceCandidate(new RTCIceCandidate(m.candidate)).catch(function() {});
+    }
+}
+
+function startCallTimer() {
+    callStartTime = Date.now();
+    callTimer.textContent = '00:00';
+    callTimerInterval = setInterval(function() {
+        var elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+        var min = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        var sec = (elapsed % 60).toString().padStart(2, '0');
+        callTimer.textContent = min + ':' + sec;
+    }, 1000);
+}
+
+function endCallCleanup() {
+    stopRingtone();
+    stopSpeechRecognition();
+    if (peerConnection) { peerConnection.close(); peerConnection = null; }
+    if (localStream) { localStream.getTracks().forEach(function(t) { t.stop(); }); localStream = null; }
+    localVideo.srcObject = null;
+    remoteVideo.srcObject = null;
+    callOverlay.classList.remove('active');
+    incomingCall.style.display = 'none';
+    incomingOverlay.style.display = 'none';
+    callPeer = null;
+    isMuted = false; isCamOff = false; subtitlesEnabled = false;
+    btnMute.classList.remove('active');
+    btnCam.classList.remove('active');
+    btnCallSubtitle.classList.remove('active');
+    callSubtitles.innerHTML = '';
+    if (callTimerInterval) { clearInterval(callTimerInterval); callTimerInterval = null; }
+}
+
+// ═══ SPEECH RECOGNITION + LIVE TRANSLATE ═════════════════════════════════════
+function startSpeechRecognition() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert('Speech recognition not supported in this browser. Use Chrome.');
+        subtitlesEnabled = false;
+        btnCallSubtitle.classList.remove('active');
+        return;
+    }
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    speechRecognition = new SR();
+    speechRecognition.continuous = true;
+    speechRecognition.interimResults = true;
+    speechRecognition.lang = getLangCode(myLang);
+
+    var finalTranscript = '';
+    var lastSentText = '';
+
+    speechRecognition.onresult = function(e) {
+        var interim = '';
+        for (var i = e.resultIndex; i < e.results.length; i++) {
+            var transcript = e.results[i][0].transcript;
+            if (e.results[i].isFinal) {
+                finalTranscript = transcript.trim();
+                // Send final transcript for translation
+                if (finalTranscript && finalTranscript !== lastSentText && callPeer) {
+                    lastSentText = finalTranscript;
+                    wsSend({ type: 'call-translate', to: callPeer, text: finalTranscript });
+                    showMySubtitle(finalTranscript);
+                }
+                finalTranscript = '';
+            } else {
+                interim += transcript;
+            }
+        }
+        // Show interim as local subtitle
+        if (interim) showMySubtitleInterim(interim);
+    };
+
+    speechRecognition.onend = function() {
+        // Auto restart if still in call with subtitles enabled
+        if (subtitlesEnabled && callPeer) {
+            try { speechRecognition.start(); } catch (e) {}
+        }
+    };
+
+    speechRecognition.onerror = function(e) {
+        if (e.error === 'not-allowed') {
+            alert('Microphone access denied for speech recognition');
+            subtitlesEnabled = false;
+            btnCallSubtitle.classList.remove('active');
+        }
+    };
+
+    try { speechRecognition.start(); } catch (e) {}
+}
+
+function stopSpeechRecognition() {
+    if (speechRecognition) {
+        subtitlesEnabled = false;
+        try { speechRecognition.stop(); } catch (e) {}
+        speechRecognition = null;
+    }
+}
+
+function getLangCode(lang) {
+    var map = { vi: 'vi-VN', en: 'en-US', ja: 'ja-JP', ko: 'ko-KR', zh: 'zh-CN', fr: 'fr-FR', de: 'de-DE', es: 'es-ES', th: 'th-TH', ar: 'ar-SA', ru: 'ru-RU', pt: 'pt-BR' };
+    return map[lang] || 'en-US';
+}
+
+function showMySubtitle(text) {
+    var div = document.createElement('div');
+    div.className = 'subtitle-line';
+    div.textContent = text;
+    div.style.borderLeft = '3px solid var(--accent)';
+    callSubtitles.appendChild(div);
+    trimSubtitles();
+    setTimeout(function() { div.style.opacity = '0'; setTimeout(function() { div.remove(); }, 300); }, 6000);
+}
+
+function showMySubtitleInterim(text) {
+    var existing = callSubtitles.querySelector('.sub-interim-mine');
+    if (!existing) {
+        existing = document.createElement('div');
+        existing.className = 'subtitle-line sub-interim-mine';
+        existing.style.opacity = '0.6';
+        existing.style.borderLeft = '3px solid var(--accent)';
+        callSubtitles.appendChild(existing);
+    }
+    existing.textContent = text;
+}
+
+function handleCallSubtitle(m) {
+    // Remove interim
+    var interim = callSubtitles.querySelector('.sub-interim-mine');
+    if (interim) interim.remove();
+
+    var div = document.createElement('div');
+    div.className = 'subtitle-line';
+    div.innerHTML = esc(m.translated) + '<span class="sub-original">' + esc(m.original) + ' (' + (LANG_CODES[m.fromLang] || m.fromLang) + ')</span>';
+    callSubtitles.appendChild(div);
+    trimSubtitles();
+    setTimeout(function() { div.style.opacity = '0'; div.style.transition = 'opacity 0.5s'; setTimeout(function() { div.remove(); }, 500); }, 8000);
+}
+
+function trimSubtitles() {
+    while (callSubtitles.children.length > 4) {
+        callSubtitles.removeChild(callSubtitles.firstChild);
+    }
+}
+
+// ═══ RINGTONE (Web Audio) ════════════════════════════════════════════════════
+var ringtoneInterval = null;
+var ringtoneCtx = null;
+
+function playRingtone() {
+    if (ringtoneInterval) return;
+    ringtoneCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function ring() {
+        if (!ringtoneCtx) return;
+        // Two-tone ring
+        [440, 520].forEach(function(freq, i) {
+            var osc = ringtoneCtx.createOscillator();
+            var gain = ringtoneCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.2, ringtoneCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ringtoneCtx.currentTime + 0.8);
+            osc.connect(gain); gain.connect(ringtoneCtx.destination);
+            osc.start(ringtoneCtx.currentTime + i * 0.15);
+            osc.stop(ringtoneCtx.currentTime + 0.8 + i * 0.15);
+        });
+    }
+    ring();
+    ringtoneInterval = setInterval(ring, 2000);
+}
+
+function stopRingtone() {
+    if (ringtoneInterval) { clearInterval(ringtoneInterval); ringtoneInterval = null; }
+    if (ringtoneCtx) { ringtoneCtx.close(); ringtoneCtx = null; }
+}
+})();
+</script>
+</body>
+</html>
