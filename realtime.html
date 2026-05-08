@@ -1581,6 +1581,7 @@ var btnCallSubtitle = $('btn-call-subtitle');
 
 var peerConnection = null;
 var localStream = null;
+var localStreamPromise = null;
 var callPeer = null; // name of the person we're calling/in call with
 var callTimerInterval = null;
 var callStartTime = 0;
@@ -1603,7 +1604,7 @@ function startCall(targetName) {
     // Show overlay immediately with "Calling..." state
     callOverlay.classList.add('active');
     callTimer.textContent = 'Calling...';
-    initLocalStream();
+    localStreamPromise = initLocalStream();
 }
 
 function handleIncomingCall(m) {
@@ -1620,15 +1621,16 @@ function handleIncomingCall(m) {
     playRingtone();
 }
 
-$('btn-accept-call').onclick = function() {
+$('btn-accept-call').onclick = async function() {
     stopRingtone();
     incomingCall.style.display = 'none';
     incomingOverlay.style.display = 'none';
     callPeerName.textContent = callPeer;
     callOverlay.classList.add('active');
     callTimer.textContent = 'Connecting...';
+    localStreamPromise = initLocalStream();
+    await localStreamPromise;
     wsSend({ type: 'call-accept', to: callPeer });
-    initLocalStream();
 };
 
 $('btn-reject-call').onclick = function() {
@@ -1639,9 +1641,10 @@ $('btn-reject-call').onclick = function() {
     callPeer = null;
 };
 
-function handleCallAccepted(m) {
+async function handleCallAccepted(m) {
     // We initiated the call, now create offer
     callTimer.textContent = 'Connecting...';
+    if (localStreamPromise) await localStreamPromise;
     createPeerConnection(true);
 }
 
@@ -1733,7 +1736,8 @@ function createPeerConnection(isInitiator) {
     }
 }
 
-function handleOffer(m) {
+async function handleOffer(m) {
+    if (localStreamPromise) await localStreamPromise;
     createPeerConnection(false);
     peerConnection.setRemoteDescription(new RTCSessionDescription(m.offer))
         .then(function() { return peerConnection.createAnswer(); })
@@ -1771,6 +1775,7 @@ function endCallCleanup() {
     stopSpeechRecognition();
     if (peerConnection) { peerConnection.close(); peerConnection = null; }
     if (localStream) { localStream.getTracks().forEach(function(t) { t.stop(); }); localStream = null; }
+    localStreamPromise = null;
     localVideo.srcObject = null;
     remoteVideo.srcObject = null;
     callOverlay.classList.remove('active');
