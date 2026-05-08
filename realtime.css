@@ -614,6 +614,60 @@ input, select, textarea, button { font-family: inherit; }
 .msg-delete:hover { color: var(--red); }
 .msg:hover .msg-delete { display: inline-block; }
 
+/* ── Reactions ── */
+.msg-reactions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+.msg.own .msg-reactions { justify-content: flex-end; }
+
+.reaction-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: var(--bg-1);
+    border: 1px solid var(--bg-3);
+    border-radius: 12px;
+    padding: 2px 7px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+}
+.reaction-pill:hover { background: var(--bg-2); border-color: var(--accent); transform: scale(1.1); }
+.reaction-pill.mine { border-color: var(--accent); background: rgba(99,102,241,0.15); }
+.reaction-pill .rcount { font-size: 0.78em; color: var(--text-2); }
+
+/* ── Reaction picker popup ── */
+#reaction-picker {
+    display: none;
+    position: fixed;
+    z-index: 500;
+    background: var(--bg-1);
+    border: 1px solid var(--bg-3);
+    border-radius: 28px;
+    padding: 6px 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    gap: 4px;
+    align-items: center;
+}
+#reaction-picker.show { display: flex; }
+
+.react-btn {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    cursor: pointer;
+    padding: 4px 5px;
+    border-radius: 50%;
+    transition: transform 0.15s, background 0.15s;
+    line-height: 1;
+}
+.react-btn:hover { transform: scale(1.35); background: var(--bg-2); }
+.react-btn:active { transform: scale(1.1); }
+
 .original-text {
     font-size: 0.75em;
     color: var(--text-3);

@@ -378,6 +378,46 @@ wss.on('connection', ws => {
             return;
         }
 
+        // REACT
+        if (m.type === 'react') {
+            const id = String(m.id || '');
+            const emoji = String(m.emoji || '').slice(0, 8);
+            const to = m.to ? String(m.to).trim() : null;
+            const action = m.action === 'remove' ? 'remove' : 'add';
+            if (!id || !emoji) return;
+
+            // Update reaction in history entry
+            const entry = hist.find(h => h.id === id);
+            if (entry) {
+                if (!entry.reactions) entry.reactions = {};
+                if (!entry.reactions[emoji]) entry.reactions[emoji] = [];
+                const arr = entry.reactions[emoji];
+                const idx = arr.indexOf(me.name);
+                if (action === 'remove') {
+                    if (idx !== -1) arr.splice(idx, 1);
+                } else {
+                    // Toggle: if already reacted, remove; else add
+                    if (idx !== -1) { arr.splice(idx, 1); }
+                    else { arr.push(me.name); }
+                }
+                if (arr.length === 0) delete entry.reactions[emoji];
+                saveHist();
+            }
+
+            // Broadcast to both users in the conversation
+            const payload = { type: 'react', id, emoji, from: me.name,
+                action: entry && entry.reactions && (entry.reactions[emoji] || []).indexOf(me.name) !== -1 ? 'add' : 'remove' };
+            send(ws, payload); // confirm to sender
+            if (to) {
+                for (const [cws, c] of clients) {
+                    if (c.name === to) { send(cws, payload); break; }
+                }
+            } else {
+                sendAll(payload, ws);
+            }
+            return;
+        }
+
         // DELETE ALL MESSAGES FROM A USER
         if (m.type === 'delete-user-msgs') {
             const target = String(m.user || '').trim();
