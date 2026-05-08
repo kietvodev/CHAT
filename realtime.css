@@ -1082,6 +1082,7 @@ input, select, textarea, button { font-family: inherit; }
 .call-btn.cam.active { background: var(--red); }
 .call-btn.subtitle-btn { background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); }
 .call-btn.subtitle-btn.active { background: var(--green); }
+.call-btn.flip-cam { background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); }
 .call-btn.hangup { background: var(--red); width: 64px; height: 64px; }
 .call-btn svg {
     width: 24px;

@@ -221,6 +221,7 @@
     <div class="call-controls">
         <button class="call-btn mute" id="btn-mute" title="Mute"><svg viewBox="0 0 24 24"><path d="M12 1a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
         <button class="call-btn cam" id="btn-cam" title="Camera"><svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></button>
+        <button class="call-btn flip-cam" id="btn-flip-cam" title="Flip Camera" style="display:none"><svg viewBox="0 0 24 24"><path d="M20 7h-3.5l-1.5-2h-6L7.5 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M9 13a3 3 0 1 0 6 0 3 3 0 0 0-6 0"/><path d="M17 4l2 2-2 2"/><path d="M7 4l-2 2 2 2"/></svg></button>
         <button class="call-btn subtitle-btn" id="btn-call-subtitle" title="Live Subtitles"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M7 12h2M11 12h6M7 16h10"/></svg></button>
         <button class="call-btn hangup" id="btn-hangup" title="End Call"><svg viewBox="0 0 24 24"><path d="M12 9c-3.3 0-6.3.8-8.7 2.2-.7.4-1.1 1.2-1 2l.5 3.4c.1.7.7 1.2 1.4 1.2h2.3c.6 0 1.1-.4 1.2-1l.5-2.5c.1-.5.5-.9 1-.9h5.6c.5 0 .9.4 1 .9l.5 2.5c.1.6.6 1 1.2 1h2.3c.7 0 1.3-.5 1.4-1.2l.5-3.4c.1-.8-.3-1.6-1-2C18.3 9.8 15.3 9 12 9z"/></svg></button>
     </div>
@@ -1578,10 +1579,15 @@ var btnMute = $('btn-mute');
 var btnCam = $('btn-cam');
 var btnHangup = $('btn-hangup');
 var btnCallSubtitle = $('btn-call-subtitle');
+var btnFlipCam = $('btn-flip-cam');
 
 var peerConnection = null;
 var localStream = null;
 var localStreamPromise = null;
+var currentFacingMode = 'user';
+var adaptiveBitrateInterval = null;
+var lowBandwidthCount = 0;
+var highBandwidthCount = 0;
 var callPeer = null; // name of the person we're calling/in call with
 var callTimerInterval = null;
 var callStartTime = 0;
@@ -1687,18 +1693,35 @@ btnCallSubtitle.onclick = function() {
 };
 
 async function initLocalStream() {
+    var videoConstraints = {
+        facingMode: currentFacingMode,
+        width: { ideal: 1920, min: 640 },
+        height: { ideal: 1080, min: 480 },
+        frameRate: { ideal: 30, min: 15 }
+    };
+    var audioConstraints = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+    };
     try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localStream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: audioConstraints });
         localVideo.srcObject = localStream;
     } catch (e) {
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+            localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: audioConstraints });
             localVideo.srcObject = localStream;
         } catch (e2) {
             alert('Cannot access camera/microphone: ' + e2.message);
             endCallCleanup();
+            return;
         }
     }
+    // Apply current toggle state to newly acquired tracks
+    if (isMuted) localStream.getAudioTracks().forEach(function(t) { t.enabled = false; });
+    if (isCamOff) localStream.getVideoTracks().forEach(function(t) { t.enabled = false; });
+    // Check if device has multiple cameras → show flip button
+    checkCameraCount();
 }
 
 function createPeerConnection(isInitiator) {
@@ -1736,6 +1759,105 @@ function createPeerConnection(isInitiator) {
     }
 }
 
+// ═══ ADAPTIVE BITRATE ════════════════════════════════════════════════════════
+function setVideoEncodings(maxBitrate) {
+    if (!peerConnection) return;
+    var videoSender = peerConnection.getSenders().find(function(s) { return s.track && s.track.kind === 'video'; });
+    if (!videoSender) return;
+    var params = videoSender.getParameters();
+    if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
+    params.encodings[0].maxBitrate = maxBitrate;
+    videoSender.setParameters(params).catch(function() {});
+}
+
+function startAdaptiveBitrate() {
+    lowBandwidthCount = 0; highBandwidthCount = 0;
+    // Set initial max quality after short delay to ensure connection is up
+    setTimeout(function() { setVideoEncodings(2500000); }, 1500);
+    adaptiveBitrateInterval = setInterval(async function() {
+        if (!peerConnection) return;
+        try {
+            var stats = await peerConnection.getStats();
+            stats.forEach(function(report) {
+                if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                    var bw = report.availableOutgoingBitrate;
+                    if (bw === undefined) return;
+                    if (bw < 400000) {
+                        lowBandwidthCount++; highBandwidthCount = 0;
+                        if (lowBandwidthCount >= 2) { setVideoEncodings(200000); lowBandwidthCount = 0; }
+                    } else if (bw < 800000) {
+                        lowBandwidthCount++; highBandwidthCount = 0;
+                        if (lowBandwidthCount >= 2) { setVideoEncodings(500000); lowBandwidthCount = 0; }
+                    } else if (bw > 1500000) {
+                        highBandwidthCount++; lowBandwidthCount = 0;
+                        if (highBandwidthCount >= 3) { setVideoEncodings(2500000); highBandwidthCount = 0; }
+                    }
+                }
+            });
+        } catch (e) {}
+    }, 3000);
+}
+
+function stopAdaptiveBitrate() {
+    if (adaptiveBitrateInterval) { clearInterval(adaptiveBitrateInterval); adaptiveBitrateInterval = null; }
+    lowBandwidthCount = 0; highBandwidthCount = 0;
+}
+
+// ═══ FLIP CAMERA ════════════════════════════════════════════════════════════
+async function checkCameraCount() {
+    try {
+        var devices = await navigator.mediaDevices.enumerateDevices();
+        var videoDevices = devices.filter(function(d) { return d.kind === 'videoinput'; });
+        btnFlipCam.style.display = videoDevices.length >= 2 ? '' : 'none';
+    } catch (e) { btnFlipCam.style.display = 'none'; }
+}
+
+btnFlipCam.onclick = async function() {
+    if (!localStream) return;
+    var nextFacing = currentFacingMode === 'user' ? 'environment' : 'user';
+    try {
+        var newStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { exact: nextFacing }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+            audio: false
+        });
+        var newVideoTrack = newStream.getVideoTracks()[0];
+        // Replace track in peer connection without renegotiation
+        if (peerConnection) {
+            var sender = peerConnection.getSenders().find(function(s) { return s.track && s.track.kind === 'video'; });
+            if (sender) await sender.replaceTrack(newVideoTrack);
+        }
+        // Swap in localStream
+        var oldVideoTrack = localStream.getVideoTracks()[0];
+        if (oldVideoTrack) { localStream.removeTrack(oldVideoTrack); oldVideoTrack.stop(); }
+        localStream.addTrack(newVideoTrack);
+        localVideo.srcObject = null;
+        localVideo.srcObject = localStream;
+        // Apply cam-off state
+        newVideoTrack.enabled = !isCamOff;
+        currentFacingMode = nextFacing;
+    } catch (e) {
+        // Fallback: try without exact constraint
+        try {
+            var newStream2 = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: nextFacing, width: { ideal: 1920 }, height: { ideal: 1080 } },
+                audio: false
+            });
+            var newVideoTrack2 = newStream2.getVideoTracks()[0];
+            if (peerConnection) {
+                var sender2 = peerConnection.getSenders().find(function(s) { return s.track && s.track.kind === 'video'; });
+                if (sender2) await sender2.replaceTrack(newVideoTrack2);
+            }
+            var oldTrack2 = localStream.getVideoTracks()[0];
+            if (oldTrack2) { localStream.removeTrack(oldTrack2); oldTrack2.stop(); }
+            localStream.addTrack(newVideoTrack2);
+            localVideo.srcObject = null;
+            localVideo.srcObject = localStream;
+            newVideoTrack2.enabled = !isCamOff;
+            currentFacingMode = nextFacing;
+        } catch (e2) { console.error('Flip camera failed:', e2); }
+    }
+};
+
 async function handleOffer(m) {
     if (localStreamPromise) await localStreamPromise;
     createPeerConnection(false);
@@ -1768,11 +1890,13 @@ function startCallTimer() {
         var sec = (elapsed % 60).toString().padStart(2, '0');
         callTimer.textContent = min + ':' + sec;
     }, 1000);
+    startAdaptiveBitrate();
 }
 
 function endCallCleanup() {
     stopRingtone();
     stopSpeechRecognition();
+    stopAdaptiveBitrate();
     if (peerConnection) { peerConnection.close(); peerConnection = null; }
     if (localStream) { localStream.getTracks().forEach(function(t) { t.stop(); }); localStream = null; }
     localStreamPromise = null;
@@ -1783,9 +1907,11 @@ function endCallCleanup() {
     incomingOverlay.style.display = 'none';
     callPeer = null;
     isMuted = false; isCamOff = false; subtitlesEnabled = false;
+    currentFacingMode = 'user';
     btnMute.classList.remove('active');
     btnCam.classList.remove('active');
     btnCallSubtitle.classList.remove('active');
+    btnFlipCam.style.display = 'none';
     callSubtitles.innerHTML = '';
     if (callTimerInterval) { clearInterval(callTimerInterval); callTimerInterval = null; }
 }
