@@ -442,14 +442,30 @@ wss.on('connection', ws => {
         if (m.type === 'call-request') {
             const target = String(m.to || '').trim();
             for (const [cws, c] of clients) {
-                if (c.name === target) { send(cws, { type: 'call-request', from: me.name, fromLang: me.lang }); break; }
+                if (c.name === target) {
+                    if (c.inCall) {
+                        // Target is busy — reject immediately, notify caller
+                        send(ws, { type: 'call-busy', from: target });
+                    } else {
+                        send(cws, { type: 'call-request', from: me.name, fromLang: me.lang });
+                    }
+                    break;
+                }
             }
             return;
         }
         if (m.type === 'call-accept') {
+            me.inCall = true;
             for (const [cws, c] of clients) {
-                if (c.name === m.to) { send(cws, { type: 'call-accept', from: me.name, fromLang: me.lang }); break; }
+                if (c.name === m.to) {
+                    c.inCall = true;
+                    send(cws, { type: 'call-accept', from: me.name, fromLang: me.lang });
+                    break;
+                }
             }
+            // Broadcast in-call status for both users
+            sendEvery({ type: 'user-call-status', name: me.name, inCall: true });
+            sendEvery({ type: 'user-call-status', name: m.to, inCall: true });
             return;
         }
         if (m.type === 'call-reject') {
@@ -459,9 +475,16 @@ wss.on('connection', ws => {
             return;
         }
         if (m.type === 'call-end') {
+            me.inCall = false;
             for (const [cws, c] of clients) {
-                if (c.name === m.to) { send(cws, { type: 'call-end', from: me.name }); break; }
+                if (c.name === m.to) {
+                    c.inCall = false;
+                    send(cws, { type: 'call-end', from: me.name });
+                    sendEvery({ type: 'user-call-status', name: c.name, inCall: false });
+                    break;
+                }
             }
+            sendEvery({ type: 'user-call-status', name: me.name, inCall: false });
             return;
         }
         if (m.type === 'webrtc-offer') {
@@ -496,6 +519,17 @@ wss.on('connection', ws => {
             }
             return;
         }
+        // Sync subtitle on/off state with call peer
+        if (m.type === 'call-subtitle-sync') {
+            const targetName = String(m.to || '').trim();
+            for (const [cws, c] of clients) {
+                if (c.name === targetName) {
+                    send(cws, { type: 'call-subtitle-sync', from: me.name, enabled: !!m.enabled });
+                    break;
+                }
+            }
+            return;
+        }
 
         // ADMIN LOGIN
         if (m.type === 'admin-login') {
@@ -520,11 +554,14 @@ wss.on('connection', ws => {
     ws.on('close', () => {
         const c = clients.get(ws);
         if (c) {
+            const wasInCall = c.inCall;
+            c.inCall = false;
             clients.delete(ws);
             const u = allUsers.get(c.name);
             if (u) { u.online = false; u.lastSeen = Date.now(); }
             sendEvery({ type: 'system', text: c.name + ' left', ts: Date.now() });
             sendEvery({ type: 'users', users: userList() });
+            if (wasInCall) sendEvery({ type: 'user-call-status', name: c.name, inCall: false });
         }
     });
 });

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TransChat - Real-time Translation</title>
 <link rel="icon" href="data:image/svg+xml,svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='20' width='100' height='100' fill='%236366f1'/><text x='50' y='68' text-anchor='middle' font-size='50' font-family='Arial' font-weight='bold' fill='white'>T</text></svg>">
-<link rel="stylesheet" href="/realtime.css?v=8">
+<link rel="stylesheet" href="/realtime.css?v=10">
 </head>
 <body>
 
@@ -100,10 +100,15 @@
             </div>
             <div id="conv-header">
                 <button id="conv-back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
-                <span id="conv-name">Group</span>
-                <span id="conv-lang"></span>
+                <div class="conv-hdr-info">
+                    <span id="conv-name">Group</span>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span id="conv-lang"></span>
+                        <span class="conv-hdr-status"></span>
+                    </div>
+                </div>
                 <span style="flex:1"></span>
-                <button id="conv-call-btn" title="Video call"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></button>
+                <button id="conv-call-btn" title="Video call"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></button>
             </div>
             <div id="messages-wrap" style="display:none"></div>
             <div id="new-msg-badge">New messages</div>
@@ -209,10 +214,12 @@
 </div>
 
 <div id="call-overlay">
-    <div class="call-videos">
+    <div class="call-videos" id="call-videos">
         <video id="remote-video" autoplay playsinline></video>
         <video id="local-video" autoplay playsinline muted></video>
+        <div class="split-hint" id="split-hint">Nhấn để chia đôi màn hình</div>
     </div>
+    <button class="call-btn flip-cam" id="btn-flip-cam" title="Flip Camera" style="display:none"><svg viewBox="0 0 24 24"><path d="M20 7h-3.5l-1.5-2h-6L7.5 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M9 13a3 3 0 1 0 6 0 3 3 0 0 0-6 0"/><path d="M17 4l2 2-2 2"/><path d="M7 4l-2 2 2 2"/></svg></button>
     <div class="call-header">
         <span class="call-name" id="call-peer-name">User</span>
         <span class="call-timer" id="call-timer">00:00</span>
@@ -221,7 +228,6 @@
     <div class="call-controls">
         <button class="call-btn mute" id="btn-mute" title="Mute"><svg viewBox="0 0 24 24"><path d="M12 1a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
         <button class="call-btn cam" id="btn-cam" title="Camera"><svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></button>
-        <button class="call-btn flip-cam" id="btn-flip-cam" title="Flip Camera" style="display:none"><svg viewBox="0 0 24 24"><path d="M20 7h-3.5l-1.5-2h-6L7.5 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M9 13a3 3 0 1 0 6 0 3 3 0 0 0-6 0"/><path d="M17 4l2 2-2 2"/><path d="M7 4l-2 2 2 2"/></svg></button>
         <button class="call-btn subtitle-btn" id="btn-call-subtitle" title="Live Subtitles"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M7 12h2M11 12h6M7 16h10"/></svg></button>
         <button class="call-btn hangup" id="btn-hangup" title="End Call"><svg viewBox="0 0 24 24"><path d="M12 9c-3.3 0-6.3.8-8.7 2.2-.7.4-1.1 1.2-1 2l.5 3.4c.1.7.7 1.2 1.4 1.2h2.3c.6 0 1.1-.4 1.2-1l.5-2.5c.1-.5.5-.9 1-.9h5.6c.5 0 .9.4 1 .9l.5 2.5c.1.6.6 1 1.2 1h2.3c.7 0 1.3-.5 1.4-1.2l.5-3.4c.1-.8-.3-1.6-1-2C18.3 9.8 15.3 9 12 9z"/></svg></button>
     </div>
@@ -253,7 +259,11 @@ var I18N = {
         callIncoming: 'Video call incoming...', endCall: 'End Call', mute: 'Mute', camera: 'Camera',
         liveSubtitles: 'Live Subtitles', deleteMsg: 'Delete this message?',
         askAI: 'Ask AI about this conversation...', aiAssistant: 'AI Assistant', ask: 'Ask',
-        enterPassword: 'Enter password...'
+        enterPassword: 'Enter password...',
+        calling: 'Calling...', connecting: 'Connecting...', inCall: 'In call',
+        callDeclined: 'declined the call', callEnded: 'Call ended with',
+        callBusy: 'is busy in another call', missedCall: 'You have a missed call from',
+        onlineStatus: 'Online'
     },
     vi: {
         title: 'TransChat', subtitle: 'Chat dịch thuật thời gian thực',
@@ -273,7 +283,11 @@ var I18N = {
         callIncoming: 'Cuộc gọi video đến...', endCall: 'Kết thúc', mute: 'Tắt mic', camera: 'Camera',
         liveSubtitles: 'Phụ đề trực tiếp', deleteMsg: 'Xóa tin nhắn này?',
         askAI: 'Hỏi AI về cuộc trò chuyện...', aiAssistant: 'Trợ lý AI', ask: 'Hỏi',
-        enterPassword: 'Nhập mật khẩu...'
+        enterPassword: 'Nhập mật khẩu...',
+        calling: 'Đang gọi...', connecting: 'Đang kết nối...', inCall: 'Đang gọi',
+        callDeclined: 'đã từ chối cuộc gọi', callEnded: 'Cuộc gọi kết thúc với',
+        callBusy: 'đang bận trong cuộc gọi khác', missedCall: 'Bạn có cuộc gọi nhỡ từ',
+        onlineStatus: 'Trực tuyến'
     },
     ja: {
         title: 'TransChat', subtitle: 'リアルタイム翻訳チャット',
@@ -293,7 +307,11 @@ var I18N = {
         callIncoming: 'ビデオ通話着信...', endCall: '終了', mute: 'ミュート', camera: 'カメラ',
         liveSubtitles: 'ライブ字幕', deleteMsg: 'メッセージを削除しますか？',
         askAI: 'AIに質問...', aiAssistant: 'AIアシスタント', ask: '質問',
-        enterPassword: 'パスワード...'
+        enterPassword: 'パスワード...',
+        calling: '呼び出し中...', connecting: '接続中...', inCall: '通話中',
+        callDeclined: '通話を拒否しました', callEnded: '通話終了',
+        callBusy: '他の通話中です', missedCall: '不在着信：',
+        onlineStatus: 'オンライン'
     },
     ko: {
         title: 'TransChat', subtitle: '실시간 번역 채팅',
@@ -313,7 +331,11 @@ var I18N = {
         callIncoming: '영상통화 수신 중...', endCall: '종료', mute: '음소거', camera: '카메라',
         liveSubtitles: '실시간 자막', deleteMsg: '이 메시지를 삭제하시겠습니까?',
         askAI: 'AI에게 질문...', aiAssistant: 'AI 어시스턴트', ask: '질문',
-        enterPassword: '비밀번호...'
+        enterPassword: '비밀번호...',
+        calling: '전화 중...', connecting: '연결 중...', inCall: '통화 중',
+        callDeclined: '통화를 거부했습니다', callEnded: '통화 종료',
+        callBusy: '다른 통화 중입니다', missedCall: '부재중 전화：',
+        onlineStatus: '온라인'
     },
     zh: {
         title: 'TransChat', subtitle: '实时翻译聊天',
@@ -333,7 +355,11 @@ var I18N = {
         callIncoming: '视频通话来电...', endCall: '结束', mute: '静音', camera: '摄像头',
         liveSubtitles: '实时字幕', deleteMsg: '删除此消息？',
         askAI: '向AI提问...', aiAssistant: 'AI助手', ask: '提问',
-        enterPassword: '输入密码...'
+        enterPassword: '输入密码...',
+        calling: '呼叫中...', connecting: '连接中...', inCall: '通话中',
+        callDeclined: '拒绝了通话', callEnded: '通话结束',
+        callBusy: '正在通话中', missedCall: '未接来电：',
+        onlineStatus: '在线'
     },
     fr: {
         title: 'TransChat', subtitle: 'Chat avec traduction en temps réel',
@@ -353,7 +379,11 @@ var I18N = {
         callIncoming: 'Appel vidéo entrant...', endCall: 'Terminer', mute: 'Muet', camera: 'Caméra',
         liveSubtitles: 'Sous-titres', deleteMsg: 'Supprimer ce message?',
         askAI: 'Demander à l\'IA...', aiAssistant: 'Assistant IA', ask: 'Demander',
-        enterPassword: 'Mot de passe...'
+        enterPassword: 'Mot de passe...',
+        calling: 'Appel en cours...', connecting: 'Connexion...', inCall: 'En appel',
+        callDeclined: 'a refusé l\'appel', callEnded: 'Appel terminé avec',
+        callBusy: 'est en appel', missedCall: 'Appel manqué de',
+        onlineStatus: 'En ligne'
     },
     de: {
         title: 'TransChat', subtitle: 'Echtzeit-Übersetzungschat',
@@ -373,7 +403,11 @@ var I18N = {
         callIncoming: 'Videoanruf eingehend...', endCall: 'Beenden', mute: 'Stumm', camera: 'Kamera',
         liveSubtitles: 'Live-Untertitel', deleteMsg: 'Nachricht löschen?',
         askAI: 'KI fragen...', aiAssistant: 'KI-Assistent', ask: 'Fragen',
-        enterPassword: 'Passwort...'
+        enterPassword: 'Passwort...',
+        calling: 'Anruf läuft...', connecting: 'Verbinden...', inCall: 'Im Gespräch',
+        callDeclined: 'hat den Anruf abgelehnt', callEnded: 'Anruf beendet mit',
+        callBusy: 'ist in einem anderen Gespräch', missedCall: 'Verpasster Anruf von',
+        onlineStatus: 'Online'
     },
     es: {
         title: 'TransChat', subtitle: 'Chat con traducción en tiempo real',
@@ -393,7 +427,11 @@ var I18N = {
         callIncoming: 'Videollamada entrante...', endCall: 'Terminar', mute: 'Silenciar', camera: 'Cámara',
         liveSubtitles: 'Subtítulos', deleteMsg: '¿Eliminar este mensaje?',
         askAI: 'Preguntar a la IA...', aiAssistant: 'Asistente IA', ask: 'Preguntar',
-        enterPassword: 'Contraseña...'
+        enterPassword: 'Contraseña...',
+        calling: 'Llamando...', connecting: 'Conectando...', inCall: 'En llamada',
+        callDeclined: 'rechazó la llamada', callEnded: 'Llamada terminada con',
+        callBusy: 'está en otra llamada', missedCall: 'Llamada perdida de',
+        onlineStatus: 'En línea'
     },
     th: {
         title: 'TransChat', subtitle: 'แชทแปลภาษาแบบเรียลไทม์',
@@ -413,7 +451,11 @@ var I18N = {
         callIncoming: 'มีสายวิดีโอเข้า...', endCall: 'วางสาย', mute: 'ปิดเสียง', camera: 'กล้อง',
         liveSubtitles: 'คำบรรยาย', deleteMsg: 'ลบข้อความนี้?',
         askAI: 'ถาม AI...', aiAssistant: 'ผู้ช่วย AI', ask: 'ถาม',
-        enterPassword: 'รหัสผ่าน...'
+        enterPassword: 'รหัสผ่าน...',
+        calling: 'กำลังโทร...', connecting: 'กำลังเชื่อมต่อ...', inCall: 'กำลังคุย',
+        callDeclined: 'ปฏิเสธการโทร', callEnded: 'สิ้นสุดการโทรกับ',
+        callBusy: 'กำลังคุยสายอื่นอยู่', missedCall: 'สายที่ไม่ได้รับจาก',
+        onlineStatus: 'ออนไลน์'
     },
     ru: {
         title: 'TransChat', subtitle: 'Чат с переводом в реальном времени',
@@ -433,7 +475,11 @@ var I18N = {
         callIncoming: 'Входящий видеозвонок...', endCall: 'Завершить', mute: 'Без звука', camera: 'Камера',
         liveSubtitles: 'Субтитры', deleteMsg: 'Удалить сообщение?',
         askAI: 'Спросить ИИ...', aiAssistant: 'ИИ Ассистент', ask: 'Спросить',
-        enterPassword: 'Пароль...'
+        enterPassword: 'Пароль...',
+        calling: 'Звонок...', connecting: 'Подключение...', inCall: 'В звонке',
+        callDeclined: 'отклонил звонок', callEnded: 'Звонок завершён с',
+        callBusy: 'занят в другом звонке', missedCall: 'Пропущенный звонок от',
+        onlineStatus: 'Онлайн'
     },
     ar: {
         title: 'TransChat', subtitle: 'دردشة مترجمة في الوقت الحقيقي',
@@ -453,7 +499,11 @@ var I18N = {
         callIncoming: 'مكالمة فيديو واردة...', endCall: 'إنهاء', mute: 'كتم', camera: 'كاميرا',
         liveSubtitles: 'ترجمة مباشرة', deleteMsg: 'حذف هذه الرسالة؟',
         askAI: 'اسأل الذكاء الاصطناعي...', aiAssistant: 'مساعد AI', ask: 'اسأل',
-        enterPassword: 'كلمة المرور...'
+        enterPassword: 'كلمة المرور...',
+        calling: 'جارٍ الاتصال...', connecting: 'جارٍ الاتصال...', inCall: 'في مكالمة',
+        callDeclined: 'رفض المكالمة', callEnded: 'انتهت المكالمة مع',
+        callBusy: 'في مكالمة أخرى', missedCall: 'مكالمة فائتة من',
+        onlineStatus: 'متصل'
     },
     pt: {
         title: 'TransChat', subtitle: 'Chat com tradução em tempo real',
@@ -473,7 +523,11 @@ var I18N = {
         callIncoming: 'Videochamada recebida...', endCall: 'Encerrar', mute: 'Mudo', camera: 'Câmera',
         liveSubtitles: 'Legendas ao vivo', deleteMsg: 'Excluir esta mensagem?',
         askAI: 'Perguntar à IA...', aiAssistant: 'Assistente IA', ask: 'Perguntar',
-        enterPassword: 'Senha...'
+        enterPassword: 'Senha...',
+        calling: 'Chamando...', connecting: 'Conectando...', inCall: 'Em chamada',
+        callDeclined: 'recusou a chamada', callEnded: 'Chamada encerrada com',
+        callBusy: 'está em outra chamada', missedCall: 'Chamada perdida de',
+        onlineStatus: 'Online'
     }
 };
 
@@ -654,7 +708,7 @@ function handle(m) {
     if (m.type === 'joined') {
         loginScreen.style.display = 'none';
         chatScreen.style.display = 'flex';
-        myBadge.textContent = myName + ' (' + (LANG_CODES[myLang] || myLang) + ')';
+        myBadge.textContent = myName + ' (' + (LANG_NAMES[myLang] || myLang) + ')';
         return;
     }
     if (m.type === 'history') { renderHistory(m.messages); return; }
@@ -678,24 +732,59 @@ function handle(m) {
     if (m.type === 'webrtc-answer') { handleAnswer(m); return; }
     if (m.type === 'webrtc-ice') { handleIce(m); return; }
     if (m.type === 'call-subtitle') { handleCallSubtitle(m); return; }
+    if (m.type === 'call-subtitle-sync') { handleCallSubtitleSync(m); return; }
+    if (m.type === 'call-busy') { handleCallBusy(m); return; }
+    if (m.type === 'user-call-status') { handleUserCallStatus(m); return; }
 }
 
 // ═══ RENDER USERS ═══
 function renderUsers(users) {
-    var on = users.filter(function(u) { return u.online; });
-    var off = users.filter(function(u) { return !u.online; });
+    var on = users.filter(function(u) { return u.online && u.name !== myName; });
+    var off = users.filter(function(u) { return !u.online && u.name !== myName; });
     onlineLabel.textContent = t('online') + ' (' + on.length + ')';
     offlineLabel.textContent = t('offline') + ' (' + off.length + ')';
     onlineList.innerHTML = '';
     offlineList.innerHTML = '';
     on.forEach(function(u) { onlineList.appendChild(makeUserItem(u, true)); });
     off.forEach(function(u) { offlineList.appendChild(makeUserItem(u, false)); });
+
+    // Update conv header if current peer's status changed
+    if (activeConv) {
+        var peer = users.find(function(u) { return u.name === activeConv; });
+        var peerOnline = peer ? peer.online : false;
+        updateConvHeaderStatus(peerOnline);
+    }
+}
+
+function updateConvHeaderStatus(online) {
+    updateConvHeaderStatus._lastOnline = online;
+    var hdrStatus = convHeader.querySelector('.conv-hdr-avatar-status');
+    if (hdrStatus) hdrStatus.className = 'conv-hdr-avatar-status' + (online ? ' on' : '');
+    var statusText = convHeader.querySelector('.conv-hdr-status');
+    if (statusText) {
+        statusText.textContent = online ? t('onlineStatus') : '';
+        statusText.style.color = '';
+        statusText.className = 'conv-hdr-status' + (online ? ' visible' : '');
+    }
+    convCallBtn.style.display = online ? 'flex' : 'none';
+}
+
+function updateConvHeaderInCall(inCall) {
+    var statusText = convHeader.querySelector('.conv-hdr-status');
+    if (statusText) {
+        statusText.textContent = inCall ? t('inCall') : (updateConvHeaderStatus._lastOnline ? t('onlineStatus') : '');
+        statusText.style.color = inCall ? 'var(--red)' : 'var(--green)';
+        statusText.className = 'conv-hdr-status' + (inCall || updateConvHeaderStatus._lastOnline ? ' visible' : '');
+    }
+    var hdrStatus = convHeader.querySelector('.conv-hdr-avatar-status');
+    if (hdrStatus) hdrStatus.className = 'conv-hdr-avatar-status' + (inCall ? ' incall' : (updateConvHeaderStatus._lastOnline ? ' on' : ''));
 }
 
 function makeUserItem(u, online) {
     var div = document.createElement('div');
     div.className = 'user-item' + (activeConv === u.name ? ' active' : '');
     div.dataset.user = u.name;
+    var initials = u.name.charAt(0).toUpperCase();
     var extra = '';
     if (!online && u.lastSeen) extra = '<span class="user-seen">' + timeAgo(u.lastSeen) + '</span>';
     var unread = unreadCounts[u.name] || 0;
@@ -704,10 +793,19 @@ function makeUserItem(u, online) {
     if (online && u.name !== myName) {
         callBtn = '<button class="user-call" title="Video call ' + esc(u.name) + '" onclick="event.stopPropagation();startCall(\'' + esc(u.name).replace(/'/g, "\\'") + '\')"><svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></button>';
     }
+    var statusDot = online ? (usersCallState[u.name] ? ' incall' : ' on') : '';
     div.innerHTML =
-        '<div class="user-dot ' + (online ? 'on' : 'off') + '"></div>' +
-        '<span class="user-name">' + esc(u.name) + (u.name === myName ? ' (you)' : '') + '</span>' +
-        '<span class="user-lang">' + (LANG_CODES[u.lang] || u.lang) + '</span>' + extra + unreadHtml + callBtn;
+        '<div class="user-avatar-wrap">' +
+            '<div class="user-avatar">' + initials + '</div>' +
+            '<div class="user-avatar-status' + statusDot + '"></div>' +
+        '</div>' +
+        '<div class="user-info">' +
+            '<span class="user-name">' + esc(u.name) + (u.name === myName ? ' (you)' : '') + '</span>' +
+            '<div class="user-meta">' +
+                '<span class="user-lang">' + (LANG_NAMES[u.lang] || u.lang) + '</span>' + extra +
+            '</div>' +
+        '</div>' +
+        unreadHtml + callBtn;
     if (u.name !== myName) {
         div.onclick = function() { switchConv(u.name); };
         div.style.cursor = 'pointer';
@@ -736,14 +834,28 @@ function switchConv(target) {
         convName.textContent = target;
         convLang.textContent = '';
         convCallBtn.style.display = 'flex';
-        // Find user lang
+        // Find user lang and online status from sidebar
+        var userOnline = false;
         var items = document.querySelectorAll('.user-item[data-user]');
         items.forEach(function(el) {
             if (el.dataset.user === target) {
                 var langEl = el.querySelector('.user-lang');
-                if (langEl) convLang.textContent = langEl.textContent;
+                if (langEl) convLang.textContent = langEl.textContent; // already native name
+                var dot = el.querySelector('.user-avatar-status');
+                if (dot) userOnline = dot.classList.contains('on');
             }
         });
+        // Update conv header avatar
+        var hdrAvatarWrap = convHeader.querySelector('.conv-hdr-avatar');
+        if (!hdrAvatarWrap) {
+            var avatarEl = document.createElement('div');
+            avatarEl.className = 'conv-hdr-avatar';
+            avatarEl.innerHTML = target.charAt(0).toUpperCase() + '<div class="conv-hdr-avatar-status"></div>';
+            convHeader.insertBefore(avatarEl, convName.parentElement || convName);
+        } else {
+            hdrAvatarWrap.childNodes[0].textContent = target.charAt(0).toUpperCase();
+        }
+        updateConvHeaderStatus(userOnline);
         msgInput.placeholder = t('messageTo') + ' ' + target + '...';
         msgInput.disabled = false;
         $('btn-send').disabled = false;
@@ -1568,6 +1680,10 @@ if (!saved || !saved.name) inpName.focus();
 
 // ═══ VIDEO CALL ═══════════════════════════════════════════════════════════════
 var callOverlay = $('call-overlay');
+var callVideosEl = $('call-videos');
+var splitHint = $('split-hint');
+var isSplitView = false;
+var splitHintTimer = null;
 var incomingCall = $('incoming-call');
 var incomingOverlay = $('incoming-call-overlay');
 var remoteVideo = $('remote-video');
@@ -1580,6 +1696,25 @@ var btnCam = $('btn-cam');
 var btnHangup = $('btn-hangup');
 var btnCallSubtitle = $('btn-call-subtitle');
 var btnFlipCam = $('btn-flip-cam');
+
+// ── Split-view toggle (click on video area) ──
+callVideosEl.addEventListener('click', function(e) {
+    // Don't toggle if clicking flip button
+    if (e.target === btnFlipCam || btnFlipCam.contains(e.target)) return;
+    isSplitView = !isSplitView;
+    callVideosEl.classList.toggle('split', isSplitView);
+    splitHint.textContent = isSplitView ? 'Nhấn để xem toàn màn hình' : 'Nhấn để chia đôi màn hình';
+    // Auto-hide hint after 3s
+    splitHint.classList.remove('hidden');
+    if (splitHintTimer) clearTimeout(splitHintTimer);
+    splitHintTimer = setTimeout(function() { splitHint.classList.add('hidden'); }, 3000);
+});
+// Show hint briefly on call start, then hide
+function showSplitHintOnce() {
+    splitHint.classList.remove('hidden');
+    if (splitHintTimer) clearTimeout(splitHintTimer);
+    splitHintTimer = setTimeout(function() { splitHint.classList.add('hidden'); }, 4000);
+}
 
 var peerConnection = null;
 var localStream = null;
@@ -1609,7 +1744,7 @@ function startCall(targetName) {
     wsSend({ type: 'call-request', to: targetName });
     // Show overlay immediately with "Calling..." state
     callOverlay.classList.add('active');
-    callTimer.textContent = 'Calling...';
+    callTimer.textContent = t('calling');
     localStreamPromise = initLocalStream();
 }
 
@@ -1633,7 +1768,7 @@ $('btn-accept-call').onclick = async function() {
     incomingOverlay.style.display = 'none';
     callPeerName.textContent = callPeer;
     callOverlay.classList.add('active');
-    callTimer.textContent = 'Connecting...';
+    callTimer.textContent = t('connecting');
     localStreamPromise = initLocalStream();
     await localStreamPromise;
     wsSend({ type: 'call-accept', to: callPeer });
@@ -1648,20 +1783,45 @@ $('btn-reject-call').onclick = function() {
 };
 
 async function handleCallAccepted(m) {
-    // We initiated the call, now create offer
-    callTimer.textContent = 'Connecting...';
+    callTimer.textContent = t('connecting');
     if (localStreamPromise) await localStreamPromise;
     createPeerConnection(true);
 }
 
 function handleCallRejected(m) {
     endCallCleanup();
-    appendSystem(m.from + ' declined the call', Date.now());
+    appendSystem(m.from + ' ' + t('callDeclined'), Date.now());
 }
 
 function handleCallEnded(m) {
     endCallCleanup();
-    appendSystem('Call ended with ' + m.from, Date.now());
+    appendSystem(t('callEnded') + ' ' + m.from, Date.now());
+}
+
+function handleCallBusy(m) {
+    endCallCleanup();
+    appendSystem(m.from + ' ' + t('callBusy'), Date.now());
+}
+
+var usersCallState = {}; // name -> true if in call
+
+function handleUserCallStatus(m) {
+    usersCallState[m.name] = m.inCall;
+    // Update sidebar dot for this user
+    var items = document.querySelectorAll('.user-item[data-user="' + m.name + '"]');
+    items.forEach(function(el) {
+        var dot = el.querySelector('.user-avatar-status');
+        if (dot) {
+            if (m.inCall) { dot.className = 'user-avatar-status incall'; }
+            else { dot.className = 'user-avatar-status' + (el.closest('#online-list') ? ' on' : ''); }
+        }
+    });
+    // Update conv header if it's the active conv peer
+    if (activeConv === m.name) {
+        updateConvHeaderInCall(m.inCall);
+        // Hide call button when peer is busy
+        convCallBtn.style.display = m.inCall ? 'none' : (updateConvHeaderStatus._lastOnline ? 'flex' : 'none');
+    }
 }
 
 btnHangup.onclick = function() {
@@ -1672,54 +1832,140 @@ btnHangup.onclick = function() {
 btnMute.onclick = function() {
     isMuted = !isMuted;
     btnMute.classList.toggle('active', isMuted);
-    if (localStream) {
-        localStream.getAudioTracks().forEach(function(t) { t.enabled = !isMuted; });
-    }
+    applyAudioMute();
 };
 
 btnCam.onclick = function() {
     isCamOff = !isCamOff;
     btnCam.classList.toggle('active', isCamOff);
-    if (localStream) {
-        localStream.getVideoTracks().forEach(function(t) { t.enabled = !isCamOff; });
-    }
+    applyVideoMute();
 };
+
+// Apply mute to every possible audio source: localStream tracks + sender tracks
+function applyAudioMute() {
+    var enabled = !isMuted;
+    // 1. Disable/enable localStream audio tracks
+    if (localStream) {
+        localStream.getAudioTracks().forEach(function(t) { t.enabled = enabled; });
+    }
+    // 2. Also disable/enable directly on sender's track (belt-and-suspenders)
+    if (peerConnection) {
+        peerConnection.getSenders().forEach(function(s) {
+            if (s.track && s.track.kind === 'audio') {
+                s.track.enabled = enabled;
+            }
+        });
+    }
+    // 3. Pause/resume speech recognition so subtitles don't bypass the mute
+    if (isMuted) {
+        srPausedByMute = true;
+        // Cancel any pending restart
+        if (srRestartTimer) { clearTimeout(srRestartTimer); srRestartTimer = null; }
+        if (speechRecognition) {
+            try { speechRecognition.abort(); } catch(e) {} // abort() stops immediately, discards pending audio
+            speechRecognition = null;
+        }
+    } else {
+        srPausedByMute = false;
+        // Restart SR if caption is on (speechRecognition is null because we nulled it on mute)
+        if (subtitlesEnabled && callPeer) {
+            _doStartSR();
+        }
+    }
+}
+
+function applyVideoMute() {
+    var enabled = !isCamOff;
+    if (localStream) {
+        localStream.getVideoTracks().forEach(function(t) { t.enabled = enabled; });
+    }
+    if (peerConnection) {
+        peerConnection.getSenders().forEach(function(s) {
+            if (s.track && s.track.kind === 'video') {
+                s.track.enabled = enabled;
+            }
+        });
+    }
+}
 
 btnCallSubtitle.onclick = function() {
     subtitlesEnabled = !subtitlesEnabled;
     btnCallSubtitle.classList.toggle('active', subtitlesEnabled);
     if (subtitlesEnabled) startSpeechRecognition();
-    else stopSpeechRecognition();
+    else stopSpeechRecognition(true);
+    // Sync caption state with peer so both sides record their own voice
+    if (callPeer) wsSend({ type: 'call-subtitle-sync', to: callPeer, enabled: subtitlesEnabled });
 };
 
+var streamResolution = 1080; // track actual resolution for bitrate tuning
+
 async function initLocalStream() {
-    var videoConstraints = {
-        facingMode: currentFacingMode,
-        width: { ideal: 1920, min: 640 },
-        height: { ideal: 1080, min: 480 },
-        frameRate: { ideal: 30, min: 15 }
-    };
     var audioConstraints = {
         echoCancellation: true,
         noiseSuppression: true,
-        autoGainControl: true
+        autoGainControl: true,
+        sampleRate: { ideal: 48000 },
+        channelCount: { ideal: 1 }
     };
-    try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: audioConstraints });
-        localVideo.srcObject = localStream;
-    } catch (e) {
+    // Try resolutions from best to acceptable, resizeMode:'none' = use camera native pixels (sharpest)
+    var videoProfiles = [
+        { label: '4K',   width: 3840, height: 2160, frameRate: 30 },
+        { label: '1080p', width: 1920, height: 1080, frameRate: 30 },
+        { label: '720p',  width: 1280, height: 720,  frameRate: 30 }
+    ];
+    var acquired = false;
+    for (var i = 0; i < videoProfiles.length; i++) {
+        var p = videoProfiles[i];
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: audioConstraints });
+            localStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: currentFacingMode,
+                    width: { exact: p.width },
+                    height: { exact: p.height },
+                    frameRate: { ideal: p.frameRate, min: 15 },
+                    resizeMode: 'none'
+                },
+                audio: audioConstraints
+            });
             localVideo.srcObject = localStream;
-        } catch (e2) {
-            alert('Cannot access camera/microphone: ' + e2.message);
-            endCallCleanup();
-            return;
+            streamResolution = p.height;
+            acquired = true;
+            break;
+        } catch (e) {}
+    }
+    if (!acquired) {
+        // Fallback: let browser choose best available
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: currentFacingMode,
+                    width: { ideal: 1920, min: 640 },
+                    height: { ideal: 1080, min: 480 },
+                    frameRate: { ideal: 30, min: 15 },
+                    resizeMode: 'none'
+                },
+                audio: audioConstraints
+            });
+            localVideo.srcObject = localStream;
+            var vt = localStream.getVideoTracks()[0];
+            streamResolution = vt ? (vt.getSettings().height || 720) : 720;
+            acquired = true;
+        } catch (e) {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: audioConstraints });
+                localVideo.srcObject = localStream;
+                streamResolution = 0;
+                acquired = true;
+            } catch (e2) {
+                alert('Cannot access camera/microphone: ' + e2.message);
+                endCallCleanup();
+                return;
+            }
         }
     }
-    // Apply current toggle state to newly acquired tracks
-    if (isMuted) localStream.getAudioTracks().forEach(function(t) { t.enabled = false; });
-    if (isCamOff) localStream.getVideoTracks().forEach(function(t) { t.enabled = false; });
+    // Apply current toggle state to newly acquired tracks (and sender if already connected)
+    applyAudioMute();
+    applyVideoMute();
     // Check if device has multiple cameras → show flip button
     checkCameraCount();
 }
@@ -1772,8 +2018,12 @@ function setVideoEncodings(maxBitrate) {
 
 function startAdaptiveBitrate() {
     lowBandwidthCount = 0; highBandwidthCount = 0;
-    // Set initial max quality after short delay to ensure connection is up
-    setTimeout(function() { setVideoEncodings(2500000); }, 1500);
+    // Initial bitrate based on captured resolution
+    var initBps = streamResolution >= 2160 ? 20000000
+                : streamResolution >= 1080 ? 8000000
+                : streamResolution >= 720  ? 4000000
+                : 1500000;
+    setTimeout(function() { setVideoEncodings(initBps); }, 1500);
     adaptiveBitrateInterval = setInterval(async function() {
         if (!peerConnection) return;
         try {
@@ -1787,10 +2037,13 @@ function startAdaptiveBitrate() {
                         if (lowBandwidthCount >= 2) { setVideoEncodings(200000); lowBandwidthCount = 0; }
                     } else if (bw < 800000) {
                         lowBandwidthCount++; highBandwidthCount = 0;
-                        if (lowBandwidthCount >= 2) { setVideoEncodings(500000); lowBandwidthCount = 0; }
-                    } else if (bw > 1500000) {
+                        if (lowBandwidthCount >= 2) { setVideoEncodings(600000); lowBandwidthCount = 0; }
+                    } else if (bw < 2000000) {
+                        lowBandwidthCount++; highBandwidthCount = 0;
+                        if (lowBandwidthCount >= 2) { setVideoEncodings(1500000); lowBandwidthCount = 0; }
+                    } else {
                         highBandwidthCount++; lowBandwidthCount = 0;
-                        if (highBandwidthCount >= 3) { setVideoEncodings(2500000); highBandwidthCount = 0; }
+                        if (highBandwidthCount >= 3) { setVideoEncodings(initBps); highBandwidthCount = 0; }
                     }
                 }
             });
@@ -1817,7 +2070,7 @@ btnFlipCam.onclick = async function() {
     var nextFacing = currentFacingMode === 'user' ? 'environment' : 'user';
     try {
         var newStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { exact: nextFacing }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+            video: { facingMode: { exact: nextFacing }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 }, resizeMode: 'none' },
             audio: false
         });
         var newVideoTrack = newStream.getVideoTracks()[0];
@@ -1839,7 +2092,7 @@ btnFlipCam.onclick = async function() {
         // Fallback: try without exact constraint
         try {
             var newStream2 = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: nextFacing, width: { ideal: 1920 }, height: { ideal: 1080 } },
+                video: { facingMode: nextFacing, width: { ideal: 1920 }, height: { ideal: 1080 }, resizeMode: 'none' },
                 audio: false
             });
             var newVideoTrack2 = newStream2.getVideoTracks()[0];
@@ -1891,11 +2144,14 @@ function startCallTimer() {
         callTimer.textContent = min + ':' + sec;
     }, 1000);
     startAdaptiveBitrate();
+    showSplitHintOnce();
 }
 
 function endCallCleanup() {
     stopRingtone();
-    stopSpeechRecognition();
+    stopSpeechRecognition(true);
+    if (srRestartTimer) { clearTimeout(srRestartTimer); srRestartTimer = null; }
+    if (srFlushTimer) { clearTimeout(srFlushTimer); srFlushTimer = null; }
     stopAdaptiveBitrate();
     if (peerConnection) { peerConnection.close(); peerConnection = null; }
     if (localStream) { localStream.getTracks().forEach(function(t) { t.stop(); }); localStream = null; }
@@ -1907,7 +2163,12 @@ function endCallCleanup() {
     incomingOverlay.style.display = 'none';
     callPeer = null;
     isMuted = false; isCamOff = false; subtitlesEnabled = false;
+    srPausedByMute = false;
     currentFacingMode = 'user';
+    isSplitView = false;
+    callVideosEl.classList.remove('split');
+    splitHint.classList.add('hidden');
+    if (splitHintTimer) { clearTimeout(splitHintTimer); splitHintTimer = null; }
     btnMute.classList.remove('active');
     btnCam.classList.remove('active');
     btnCallSubtitle.classList.remove('active');
@@ -1917,6 +2178,11 @@ function endCallCleanup() {
 }
 
 // ═══ SPEECH RECOGNITION + LIVE TRANSLATE ═════════════════════════════════════
+var srRestartDelay = 200;   // backoff delay ms
+var srRestartTimer = null;
+var srFlushTimer = null;    // flush accumulated sentence after silence
+var srPausedByMute = false; // prevent SR from restarting when user muted their mic
+
 function startSpeechRecognition() {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         alert('Speech recognition not supported in this browser. Use Chrome.');
@@ -1924,59 +2190,137 @@ function startSpeechRecognition() {
         btnCallSubtitle.classList.remove('active');
         return;
     }
+    srRestartDelay = 200;
+    _doStartSR();
+}
+
+function _doStartSR() {
+    if (!subtitlesEnabled || !callPeer || srPausedByMute) return;
+    if (speechRecognition) return; // already running
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     speechRecognition = new SR();
     speechRecognition.continuous = true;
     speechRecognition.interimResults = true;
+    speechRecognition.maxAlternatives = 5;  // pick highest-confidence hypothesis
     speechRecognition.lang = getLangCode(myLang);
 
-    var finalTranscript = '';
+    var accumulatedText = '';   // build up full sentence
     var lastSentText = '';
+    var interimDebounce = null;
 
     speechRecognition.onresult = function(e) {
         var interim = '';
         for (var i = e.resultIndex; i < e.results.length; i++) {
-            var transcript = e.results[i][0].transcript;
-            if (e.results[i].isFinal) {
-                finalTranscript = transcript.trim();
-                // Send final transcript for translation
-                if (finalTranscript && finalTranscript !== lastSentText && callPeer) {
-                    lastSentText = finalTranscript;
-                    wsSend({ type: 'call-translate', to: callPeer, text: finalTranscript });
-                    showMySubtitle(finalTranscript);
+            var result = e.results[i];
+            if (result.isFinal) {
+                // Pick the alternative with highest confidence
+                var best = result[0];
+                for (var k = 1; k < result.length; k++) {
+                    if (result[k].confidence > best.confidence) best = result[k];
                 }
-                finalTranscript = '';
+                var confidence = best.confidence || 0;
+                var text = best.transcript.trim();
+                // Skip low-confidence noise (< 0.35 threshold)
+                if (!text || confidence < 0.35) continue;
+
+                accumulatedText = (accumulatedText ? accumulatedText + ' ' : '') + text;
+
+                // Flush on sentence-ending punctuation or after silence
+                var endsWithPunct = /[.!?。！？\n]$/.test(accumulatedText);
+                if (endsWithPunct) {
+                    _flushAccumulated();
+                } else {
+                    // Wait 2s of silence then flush
+                    if (srFlushTimer) clearTimeout(srFlushTimer);
+                    srFlushTimer = setTimeout(_flushAccumulated, 2000);
+                }
             } else {
-                interim += transcript;
+                // Pick best alternative for interim too
+                var bestInterim = result[0];
+                for (var j = 1; j < result.length; j++) {
+                    if (result[j].confidence > bestInterim.confidence) bestInterim = result[j];
+                }
+                interim += bestInterim.transcript;
             }
         }
-        // Show interim as local subtitle
-        if (interim) showMySubtitleInterim(interim);
+
+        if (interim) {
+            // Debounce interim DOM updates (max 15fps)
+            if (interimDebounce) return;
+            interimDebounce = setTimeout(function() {
+                interimDebounce = null;
+                // Don't show interim if flush already happened
+                if (!accumulatedText && !interim) return;
+                var full = (accumulatedText ? accumulatedText + ' ' : '') + interim;
+                showMySubtitleInterim(full);
+            }, 66);
+        }
     };
 
-    speechRecognition.onend = function() {
-        // Auto restart if still in call with subtitles enabled
-        if (subtitlesEnabled && callPeer) {
-            try { speechRecognition.start(); } catch (e) {}
+    function _flushAccumulated() {
+        if (srFlushTimer) { clearTimeout(srFlushTimer); srFlushTimer = null; }
+        // Cancel any pending interim display to avoid ghost element after flush
+        if (interimDebounce) { clearTimeout(interimDebounce); interimDebounce = null; }
+        var text = accumulatedText.trim();
+        accumulatedText = '';
+        // Remove interim display before showing final
+        var ex = callSubtitles.querySelector('.sub-interim-mine');
+        if (ex) ex.remove();
+        if (!text || text === lastSentText) return;
+        lastSentText = text;
+        if (callPeer) {
+            wsSend({ type: 'call-translate', to: callPeer, text: text });
+            showMySubtitle(text);
         }
+    }
+
+    speechRecognition.onend = function() {
+        speechRecognition = null; // clear reference immediately
+        if (srFlushTimer) { clearTimeout(srFlushTimer); srFlushTimer = null; }
+        // Flush anything pending before restarting
+        if (accumulatedText.trim()) _flushAccumulated();
+        // Don't restart if user manually disabled captions, left call, or muted their mic
+        if (!subtitlesEnabled || !callPeer || srPausedByMute) return;
+        // Exponential backoff restart to avoid rapid loop on errors
+        srRestartTimer = setTimeout(function() {
+            srRestartDelay = Math.min(srRestartDelay * 1.5, 8000);
+            _doStartSR();
+        }, srRestartDelay);
     };
 
     speechRecognition.onerror = function(e) {
-        if (e.error === 'not-allowed') {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
             alert('Microphone access denied for speech recognition');
             subtitlesEnabled = false;
             btnCallSubtitle.classList.remove('active');
+        } else if (e.error === 'no-speech') {
+            // Common – just let onend restart
+            srRestartDelay = 200;
+        } else if (e.error === 'audio-capture') {
+            alert('Audio capture failed. Check your microphone.');
+            subtitlesEnabled = false;
+            btnCallSubtitle.classList.remove('active');
+        } else if (e.error === 'network') {
+            // Speech API network issue – back off before retry
+            srRestartDelay = Math.min(srRestartDelay * 2, 8000);
         }
+        // For aborted/other errors: let onend handle restart
     };
 
     try { speechRecognition.start(); } catch (e) {}
 }
 
-function stopSpeechRecognition() {
+// stopSpeechRecognition(true) = user manually turned off subtitles → reset subtitlesEnabled
+// stopSpeechRecognition()     = internal pause (mute/cleanup) → keep subtitlesEnabled as-is
+function stopSpeechRecognition(userTriggered) {
+    if (srRestartTimer) { clearTimeout(srRestartTimer); srRestartTimer = null; }
+    if (srFlushTimer) { clearTimeout(srFlushTimer); srFlushTimer = null; }
     if (speechRecognition) {
-        subtitlesEnabled = false;
-        try { speechRecognition.stop(); } catch (e) {}
+        if (userTriggered) subtitlesEnabled = false;
+        try { speechRecognition.abort(); } catch (e) {}
         speechRecognition = null;
+    } else if (userTriggered) {
+        subtitlesEnabled = false;
     }
 }
 
@@ -2005,6 +2349,19 @@ function showMySubtitleInterim(text) {
         callSubtitles.appendChild(existing);
     }
     existing.textContent = text;
+}
+
+function handleCallSubtitleSync(m) {
+    if (m.enabled && !subtitlesEnabled) {
+        // Peer enabled caption → auto-enable our SR so our voice also gets sent
+        subtitlesEnabled = true;
+        btnCallSubtitle.classList.add('active');
+        startSpeechRecognition();
+    } else if (!m.enabled && subtitlesEnabled) {
+        // Peer disabled caption → auto-disable ours
+        stopSpeechRecognition(true);
+        btnCallSubtitle.classList.remove('active');
+    }
 }
 
 function handleCallSubtitle(m) {
