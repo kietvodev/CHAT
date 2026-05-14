@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
+    "playwright": "^1.52.0",
     "ws": "^8.18.0"
   }
 }

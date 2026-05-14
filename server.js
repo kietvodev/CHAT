@@ -58,9 +58,7 @@ db.exec(`
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 const DEF_CONFIG = {
     adminPass : 'admin123',
-    apiKey    : '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',
-    apiUrl    : 'https://api.groq.com/openai/v1/chat/completions',
-    models    : ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b']
+    ltUrl     : 'https://api.languagetool.org'
 };
 
 const stmtGetCfg = db.prepare('SELECT value FROM config WHERE key = ?');
@@ -78,16 +76,12 @@ for (const [k, v] of Object.entries(DEF_CONFIG)) {
 
 let cfg = {
     adminPass : getCfgVal('adminPass'),
-    apiKey    : getCfgVal('apiKey'),
-    apiUrl    : getCfgVal('apiUrl'),
-    models    : JSON.parse(getCfgVal('models') || '[]')
+    ltUrl     : getCfgVal('ltUrl') || 'https://api.languagetool.org'
 };
 
 function saveCfg() {
     setCfgVal('adminPass', cfg.adminPass);
-    setCfgVal('apiKey',    cfg.apiKey);
-    setCfgVal('apiUrl',    cfg.apiUrl);
-    setCfgVal('models',    JSON.stringify(cfg.models));
+    setCfgVal('ltUrl',     cfg.ltUrl);
 }
 
 // ─── PREPARED STATEMENTS ──────────────────────────────────────────────────────
@@ -176,33 +170,192 @@ function mapHistRow(row, forUser) {
         model:null, reactions, to:row.to_user, isHistory:true };
 }
 
-// ─── TRANSLATION ──────────────────────────────────────────────────────────────
-async function translate(text, from, to, idx = 0) {
-    if (from === to) return { text, model: null };
-    const models = cfg.models;
-    if (idx >= models.length) return { text, model: null, error: 'All models failed' };
-    const model = models[idx];
-    const fromN = LANGS[from]||from, toN = LANGS[to]||to;
+// ─── DEEPL TRANSLATION ────────────────────────────────────────────────────────
+const DEEPL_ENDPOINT   = 'https://oneshot-free.www.deepl.com/v1/storefront/translate';
+const DEEPL_CFG_FILE   = path.join(DATA, 'deepl.json');
+const DEEPL_LIFETIME   = 4 * 3600 * 1000;  // cookie giả định sống 4h
+const DEEPL_REFRESH_AT = 5 * 60  * 1000;  // làm mới khi còn < 5 phút
+
+// Các ngôn ngữ DeepL hỗ trợ (map từ code nội bộ)
+const DEEPL_LANG = {
+    en:'en', vi:'vi', ja:'ja', zh:'zh', ko:'ko',
+    fr:'fr', de:'de', es:'es', th:'th', ar:'ar',
+    ru:'ru', pt:'pt', it:'it', hi:'hi', id:'id'
+};
+
+function loadDeeplCfg() {
     try {
-        const r = await fetch(cfg.apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+cfg.apiKey },
-            body: JSON.stringify({
-                model,
-                messages: [{ role:'user', content:`Translate from ${fromN} to ${toN}. Output ONLY the translated text, nothing else.\n\n${text}` }],
-                temperature: 0.1, max_tokens: 1024
-            })
-        });
-        if (!r.ok) { console.log(`[${model}] HTTP ${r.status}, fallback...`); return translate(text, from, to, idx+1); }
-        const d = await r.json();
-        const t = d.choices?.[0]?.message?.content?.trim();
-        if (!t) throw new Error('Empty response');
-        return { text: t, model };
+        if (fs.existsSync(DEEPL_CFG_FILE))
+            return JSON.parse(fs.readFileSync(DEEPL_CFG_FILE, 'utf8'));
+        // Bootstrap lần đầu từ config của API CHAT
+        const sibling = path.join(__dirname, '..', 'API CHAT', 'config.json');
+        if (fs.existsSync(sibling))
+            return JSON.parse(fs.readFileSync(sibling, 'utf8'));
+    } catch {}
+    return {};
+}
+
+function saveDeeplCfg(cookie) {
+    fs.writeFileSync(DEEPL_CFG_FILE,
+        JSON.stringify({ cookie, saved_at: Math.floor(Date.now() / 1000) }, null, 2));
+}
+
+function parseDeeplCookies(str) {
+    const out = {};
+    for (const p of str.split(';')) {
+        const eq = p.indexOf('=');
+        if (eq > 0) out[p.slice(0, eq).trim()] = p.slice(eq + 1).trim();
+    }
+    return out;
+}
+
+function splitText(text, max = 1500) {
+    if (text.length <= max) return [text];
+    const chunks = [];
+    while (text.length) {
+        if (text.length <= max) { chunks.push(text); break; }
+        const seg = text.slice(0, max);
+        let cut = Math.max(seg.lastIndexOf('\n'), seg.lastIndexOf('. '),
+                           seg.lastIndexOf('! '), seg.lastIndexOf('? '));
+        if (cut <= 0) cut = seg.lastIndexOf(' ');
+        if (cut <= 0) cut = max; else cut += 1;
+        chunks.push(text.slice(0, cut).trimEnd());
+        text = text.slice(cut).trimStart();
+    }
+    return chunks.filter(c => c);
+}
+
+function logTime() { return new Date().toLocaleTimeString('vi-VN', { hour12: false }); }
+
+async function translate(text, from, to) {
+    if (from === to) return { text, model: null };
+    if (!DEEPL_LANG[from] || !DEEPL_LANG[to]) {
+        console.warn(`[DeepL ${logTime()}] Ngôn ngữ không hỗ trợ: ${from} → ${to}`);
+        return { text, model: null };
+    }
+    const dc = loadDeeplCfg();
+    if (!dc.cookie) {
+        console.warn(`[DeepL ${logTime()}] ❌ Chưa có cookie — bỏ qua dịch`);
+        return { text, model: null };
+    }
+    const preview = text.length > 40 ? text.slice(0, 40) + '…' : text;
+    const t0 = Date.now();
+    const instanceId = parseDeeplCookies(dc.cookie)['dapUid'] || '';
+    const chunks  = splitText(text);
+    const results = new Array(chunks.length);
+    try {
+        await Promise.all(chunks.map(async (chunk, i) => {
+            const r = await fetch(DEEPL_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'accept': '*/*', 'accept-language': 'en,vi;q=0.9',
+                    'content-type': 'application/json',
+                    'origin': 'https://www.deepl.com',
+                    'referer': 'https://www.deepl.com/',
+                    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
+                    'cookie': dc.cookie
+                },
+                body: JSON.stringify({
+                    text: [chunk],
+                    source_lang: DEEPL_LANG[from],
+                    target_lang: DEEPL_LANG[to],
+                    language_model: 'next-gen', usage_type: 'Translate',
+                    app_information: { instance_id: instanceId,
+                        app_build: 'Chrome', os: 'Windows',
+                        app_version: 'any', os_version: 'any' }
+                })
+            });
+            if (!r.ok) {
+                console.error(`[DeepL ${logTime()}] ❌ HTTP ${r.status} (${from}→${to}) — cookie có thể hết hạn`);
+                throw new Error(`DeepL HTTP ${r.status}`);
+            }
+            const d = await r.json();
+            const t = d.translations?.[0]?.text;
+            if (!t) throw new Error('Không có kết quả dịch');
+            results[i] = t;
+        }));
+        const ms = Date.now() - t0;
+        console.log(`[DeepL ${logTime()}] ✓ ${from}→${to} | ${ms}ms | "${preview}"`);
+        return { text: results.join('\n'), model: 'deepl' };
     } catch (e) {
-        console.log(`[${model}] ${e.message}, fallback...`);
-        return translate(text, from, to, idx+1);
+        console.error(`[DeepL ${logTime()}] ❌ Lỗi dịch (${from}→${to}): ${e.message}`);
+        return { text, model: null };
     }
 }
+
+async function refreshDeeplCookie() {
+    let pw;
+    try { pw = require('playwright'); } catch {
+        console.warn(`[DeepL ${logTime()}] ⚠ Chưa cài playwright. Chạy: npm install playwright && npx playwright install chromium`);
+        return false;
+    }
+    console.log(`[DeepL ${logTime()}] 🔄 Đang lấy cookie mới qua Playwright...`);
+    const t0 = Date.now();
+    let capturedCookie = null;
+    try {
+        const browser = await pw.chromium.launch({ headless: true });
+        const ctx = await browser.newContext({
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
+            locale: 'en-US'
+        });
+        const page = await ctx.newPage();
+        page.on('request', req => {
+            if (req.url().includes('storefront/translate') && !capturedCookie) {
+                const h = req.headers();
+                if (h['cookie']) capturedCookie = h['cookie'];
+            }
+        });
+        await page.goto('https://www.deepl.com/en/translator', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.waitForTimeout(3000);
+        try {
+            const src = page.locator("[data-testid='translator-source-input'], textarea[name='source']").first();
+            await src.click({ timeout: 5000 });
+            await src.fill('Hello world');
+            await page.waitForTimeout(4000);
+        } catch {}
+        if (!capturedCookie) {
+            const cookies = await ctx.cookies('https://www.deepl.com');
+            if (cookies.length) capturedCookie = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+        }
+        await browser.close();
+        if (capturedCookie) {
+            saveDeeplCfg(capturedCookie);
+            console.log(`[DeepL ${logTime()}] ✅ Cookie làm mới thành công (${((Date.now()-t0)/1000).toFixed(1)}s)`);
+            return true;
+        }
+        console.warn(`[DeepL ${logTime()}] ❌ Không lấy được cookie từ trình duyệt`);
+    } catch (e) { console.error(`[DeepL ${logTime()}] ❌ Playwright lỗi: ${e.message}`); }
+    return false;
+}
+
+function deeplCookieStatus() {
+    const dc = loadDeeplCfg();
+    if (!dc.cookie)    return '❌ Chưa có cookie';
+    if (!dc.saved_at)  return '⚠ Cookie chưa có thời gian lưu';
+    const elapsed   = Date.now() - dc.saved_at * 1000;
+    const remaining = DEEPL_LIFETIME - elapsed;
+    if (remaining <= 0) return '❌ Cookie đã hết hạn';
+    const h = Math.floor(remaining / 3600000);
+    const m = Math.floor((remaining % 3600000) / 60000);
+    return `✅ Cookie còn hạn ~${h}h${m}m`;
+}
+
+function scheduleDeeplRefresh() {
+    const dc = loadDeeplCfg();
+    let delayMs = 0;
+    if (dc.saved_at) {
+        const remaining = DEEPL_LIFETIME - (Date.now() - dc.saved_at * 1000);
+        delayMs = Math.max(0, remaining - DEEPL_REFRESH_AT);
+    }
+    const h = Math.floor(delayMs / 3600000);
+    const m = Math.floor((delayMs % 3600000) / 60000);
+    console.log(`[DeepL ${logTime()}] ${deeplCookieStatus()} — làm mới sau ${h}h${m}m`);
+    setTimeout(async () => { await refreshDeeplCookie(); scheduleDeeplRefresh(); }, delayMs || 5000);
+}
+
+scheduleDeeplRefresh();
+
+const ltCache = new Map(); // cache kết quả spell check
 
 // ─── HTTP SERVER ──────────────────────────────────────────────────────────────
 const MIME = {
@@ -218,6 +371,60 @@ const srv = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return; }
+
+    if (req.method === 'POST' && req.url === '/correct') {
+        let body = '';
+        req.on('data', c => { body += c; });
+        req.on('end', async () => {
+            res.setHeader('Content-Type', 'application/json');
+            try {
+                const { text, lang } = JSON.parse(body);
+                if (!text || text.trim().length < 3)
+                    return res.end(JSON.stringify({ corrected: text, changed: false }));
+
+                const key = `${lang}:${text.trim()}`;
+                if (ltCache.has(key)) return res.end(JSON.stringify(ltCache.get(key)));
+
+                const LT_LANG = {
+                    vi:'vi', en:'en-US', fr:'fr', de:'de-DE',
+                    es:'es', pt:'pt-BR', ru:'ru', it:'it',
+                    zh:'zh-CN', ja:'ja', ko:'ko', ar:'ar',
+                    id:'id', hi:'hi', th:'th'
+                };
+                const ltLang = LT_LANG[lang] || 'auto';
+                const ltUrl  = (cfg.ltUrl || 'https://api.languagetool.org') + '/v2/check';
+                const params = new URLSearchParams({ text: text.trim(), language: ltLang });
+
+                const r = await fetch(ltUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params.toString()
+                });
+                if (!r.ok) throw new Error(`LanguageTool HTTP ${r.status}`);
+                const d = await r.json();
+
+                let corrected = text.trim();
+                const matches = (d.matches || [])
+                    .filter(m => m.replacements?.length > 0)
+                    .sort((a, b) => b.offset - a.offset);
+                for (const m of matches) {
+                    const best = m.replacements[0].value;
+                    corrected = corrected.slice(0, m.offset) + best + corrected.slice(m.offset + m.length);
+                }
+
+                const changed = corrected !== text.trim();
+                if (changed) console.log(`[Correct ${logTime()}] ${lang} | "${text.trim().slice(0,40)}" → "${corrected.slice(0,40)}"`);
+                const result = { corrected, changed };
+                if (ltCache.size > 500) ltCache.clear(); // tránh tràn bộ nhớ
+                ltCache.set(key, result);
+                res.end(JSON.stringify(result));
+            } catch (e) {
+                res.writeHead(500);
+                res.end(JSON.stringify({ error: e.message }));
+            }
+        });
+        return;
+    }
 
     if (req.method === 'POST' && req.url === '/upload') {
         let size = 0; const chunks = [];
@@ -589,17 +796,31 @@ wss.on('connection', ws => {
         // ── ADMIN ─────────────────────────────────────────────────────────────
         if (m.type === 'admin-login') {
             const ok = m.pass === cfg.adminPass;
-            send(ws, { type:'admin-auth', ok, cfg:ok?{apiKey:cfg.apiKey,models:cfg.models,apiUrl:cfg.apiUrl,adminPass:cfg.adminPass}:null });
+            const dc = ok ? loadDeeplCfg() : null;
+            send(ws, { type:'admin-auth', ok, cfg: ok ? {
+                adminPass: cfg.adminPass,
+                deeplCookieSavedAt: dc?.saved_at || null
+            } : null });
             return;
         }
         if (m.type === 'admin-save') {
             if (m.pass !== cfg.adminPass) return send(ws,{type:'admin-result',ok:false});
-            if (m.cfg.apiKey)    cfg.apiKey    = m.cfg.apiKey;
-            if (m.cfg.apiUrl)    cfg.apiUrl    = m.cfg.apiUrl;
             if (m.cfg.adminPass) cfg.adminPass = m.cfg.adminPass;
-            if (m.cfg.models && m.cfg.models.length) cfg.models = m.cfg.models;
             saveCfg();
             send(ws, { type:'admin-result', ok:true });
+            return;
+        }
+        if (m.type === 'admin-set-cookie') {
+            if (m.pass !== cfg.adminPass) return send(ws,{type:'error',text:'Unauthorized'});
+            const cookie = String(m.cookie||'').trim();
+            if (!cookie) return send(ws,{type:'error',text:'Cookie rỗng'});
+            saveDeeplCfg(cookie);
+            send(ws, { type:'admin-cookie-updated', ok:true });
+            return;
+        }
+        if (m.type === 'admin-refresh-cookie') {
+            if (m.pass !== cfg.adminPass) return send(ws,{type:'error',text:'Unauthorized'});
+            refreshDeeplCookie().then(ok => send(ws, { type:'admin-cookie-updated', ok }));
             return;
         }
     });
