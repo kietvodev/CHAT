@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TransChat - Real-time Translation</title>
 <link rel="icon" href="data:image/svg+xml,svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='20' width='100' height='100' fill='%236366f1'/><text x='50' y='68' text-anchor='middle' font-size='50' font-family='Arial' font-weight='bold' fill='white'>T</text></svg>">
-<link rel="stylesheet" href="/realtime.css?v=10">
+<link rel="stylesheet" href="/realtime.css?v=13">
 </head>
 <body>
 
@@ -67,6 +67,12 @@
             <option value="pt">Portuguese</option>
         </select>
         <div id="login-error"></div>
+
+        <!-- Auto-login loading state -->
+        <div id="login-loading" style="display:none;flex-direction:column;align-items:center;gap:16px;padding:8px 0">
+            <div class="login-spinner"></div>
+            <span style="color:var(--text-3);font-size:0.85em" id="lbl-connecting">Đang kết nối...</span>
+        </div>
     </div>
 </div>
 
@@ -81,12 +87,16 @@
         <span id="my-badge"></span>
         <button id="btn-ai" class="hdr-btn" title="AI Assistant"><svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"/><circle cx="9" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="11" r="1.2" fill="currentColor" stroke="none"/><path d="M9.5 15a3.5 3.5 0 0 0 5 0"/></svg></button>
         <button id="btn-notif" class="hdr-btn" title="Notifications"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="hdr-dot"></span></button>
-        <button id="btn-admin" class="hdr-btn" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <button id="btn-profile" class="hdr-btn" title="Profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></button>
         <button id="btn-logout" class="hdr-btn" title="Logout"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
     </div>
     <div id="chat-body">
         <div id="sidebar-overlay"></div>
         <div id="sidebar">
+            <div id="sidebar-search-wrap">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input id="user-search" type="text" placeholder="Tìm tên, SĐT, email..." autocomplete="off">
+            </div>
             <div class="sidebar-section" id="online-label">Online (0)</div>
             <div id="online-list"></div>
             <div class="sidebar-section" id="offline-label">Offline (0)</div>
@@ -102,12 +112,11 @@
                 <button id="conv-back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
                 <div class="conv-hdr-info">
                     <span id="conv-name">Group</span>
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <span id="conv-lang"></span>
-                        <span class="conv-hdr-status"></span>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden">
+                        <span id="conv-lang" style="white-space:nowrap;flex-shrink:0"></span>
+                        <span class="conv-hdr-status" style="white-space:nowrap"></span>
                     </div>
                 </div>
-                <span style="flex:1"></span>
                 <button id="conv-call-btn" title="Video call"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></button>
             </div>
             <div id="messages-wrap" style="display:none"></div>
@@ -146,46 +155,92 @@
     </div>
 </div>
 
-<!-- ═══ ADMIN MODAL ═══ -->
 <div id="lightbox" onclick="this.style.display='none'"><img id="lightbox-img" src=""></div>
-<div id="admin-overlay">
-    <div id="admin-modal">
-        <h2><span>Admin Panel</span><button id="admin-close-x">&times;</button></h2>
 
-        <div id="admin-login-form">
-            <div class="admin-field">
-                <label>Admin Password</label>
-                <input type="password" id="adm-pass" placeholder="Enter password...">
+<!-- ═══ PROFILE MODAL ═══ -->
+<!-- Peer profile popup -->
+<div id="peer-profile-popup">
+    <div class="peer-pp-card">
+        <button class="peer-pp-close" id="peer-pp-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        <div class="peer-pp-avatar" id="peer-pp-avatar"></div>
+        <div class="peer-pp-name" id="peer-pp-name"></div>
+        <div class="peer-pp-rows">
+            <div class="peer-pp-row" id="peer-pp-lang">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                <span id="peer-pp-lang-val"></span>
             </div>
-            <div class="admin-actions">
-                <button class="btn-save" id="btn-adm-login">Login</button>
-                <button class="btn-close" id="btn-adm-cancel1">Cancel</button>
+            <div class="peer-pp-row" id="peer-pp-phone">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.38 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.78a16 16 0 0 0 6 6l.95-.95a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21.73 16z"/></svg>
+                <span id="peer-pp-phone-val"></span>
+            </div>
+            <div class="peer-pp-row" id="peer-pp-email">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                <span id="peer-pp-email-val"></span>
             </div>
         </div>
+    </div>
+</div>
 
-        <div id="admin-config" style="display:none">
-            <div class="admin-field">
-                <label>Groq API Key</label>
-                <input type="text" id="adm-key">
-            </div>
-            <div class="admin-field">
-                <label>Models (one per line, first = primary)</label>
-                <textarea id="adm-models"></textarea>
-            </div>
-            <div class="admin-field">
-                <label>API URL</label>
-                <input type="text" id="adm-url">
-            </div>
-            <div class="admin-field">
-                <label>New Admin Password (leave blank to keep)</label>
-                <input type="password" id="adm-newpass" placeholder="New password...">
-            </div>
-            <div class="admin-actions">
-                <button class="btn-save" id="btn-adm-save">Save</button>
-                <button class="btn-close" id="btn-adm-close">Close</button>
-            </div>
-            <div id="admin-msg"></div>
+<div id="profile-overlay">
+    <div id="profile-modal">
+        <div class="profile-modal-hdr">
+            <span id="profile-title">Hồ sơ cá nhân</span>
+            <button id="profile-close-x">&times;</button>
         </div>
+        <!-- Avatar -->
+        <div class="profile-avatar-section">
+            <div class="profile-avatar-wrapper">
+                <div id="profile-avatar-preview"></div>
+                <button id="btn-avatar-upload" type="button" title="Upload photo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </button>
+                <input type="file" id="avatar-file-input" accept="image/*" style="display:none">
+            </div>
+            <div class="profile-avatar-colors" id="profile-color-picker">
+                <button class="color-dot" data-color="#6366f1" style="background:#6366f1"></button>
+                <button class="color-dot" data-color="#ec4899" style="background:#ec4899"></button>
+                <button class="color-dot" data-color="#f59e0b" style="background:#f59e0b"></button>
+                <button class="color-dot" data-color="#10b981" style="background:#10b981"></button>
+                <button class="color-dot" data-color="#3b82f6" style="background:#3b82f6"></button>
+                <button class="color-dot" data-color="#ef4444" style="background:#ef4444"></button>
+            </div>
+            <span class="profile-avatar-hint">Chọn màu đại diện</span>
+        </div>
+        <!-- Fields -->
+        <div class="profile-field">
+            <label id="lbl-profile-name">Tên hiển thị</label>
+            <input type="text" id="profile-name" maxlength="30">
+        </div>
+        <div class="profile-field">
+            <label id="lbl-profile-lang">Ngôn ngữ</label>
+            <select id="profile-lang">
+                <option value="vi">🇻🇳 Tiếng Việt</option>
+                <option value="en">🇬🇧 English</option>
+                <option value="ja">🇯🇵 日本語</option>
+                <option value="ko">🇰🇷 한국어</option>
+                <option value="zh">🇨🇳 中文</option>
+                <option value="fr">🇫🇷 Français</option>
+                <option value="de">🇩🇪 Deutsch</option>
+                <option value="es">🇪🇸 Español</option>
+                <option value="th">🇹🇭 ภาษาไทย</option>
+                <option value="ar">🇸🇦 العربية</option>
+                <option value="ru">🇷🇺 Русский</option>
+                <option value="pt">🇧🇷 Português</option>
+            </select>
+        </div>
+        <div class="profile-field">
+            <label id="lbl-profile-phone">Số điện thoại</label>
+            <input type="tel" id="profile-phone" placeholder="+84..." maxlength="20">
+        </div>
+        <div class="profile-field">
+            <label id="lbl-profile-email">Email</label>
+            <input type="email" id="profile-email" placeholder="email@..." maxlength="100">
+        </div>
+        <div class="profile-actions">
+            <button id="btn-profile-save" class="btn-save">Lưu</button>
+            <button id="btn-profile-cancel" class="btn-close">Hủy</button>
+        </div>
+        <div id="profile-msg"></div>
     </div>
 </div>
 
@@ -197,8 +252,18 @@
     <div class="caller-name" id="caller-name">Someone</div>
     <div class="caller-info">Video call incoming...</div>
     <div class="incoming-actions">
-        <button class="btn-reject-call" id="btn-reject-call" title="Reject"><svg viewBox="0 0 24 24"><path d="M12 9c-3.3 0-6.3.8-8.7 2.2-.7.4-1.1 1.2-1 2l.5 3.4c.1.7.7 1.2 1.4 1.2h2.3c.6 0 1.1-.4 1.2-1l.5-2.5c.1-.5.5-.9 1-.9h5.6c.5 0 .9.4 1 .9l.5 2.5c.1.6.6 1 1.2 1h2.3c.7 0 1.3-.5 1.4-1.2l.5-3.4c.1-.8-.3-1.6-1-2C18.3 9.8 15.3 9 12 9z" fill="currentColor" stroke="none"/><line x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="2.5"/></svg></button>
-        <button class="btn-accept-call" id="btn-accept-call" title="Accept"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></button>
+        <div class="call-action-item">
+            <button class="btn-reject-call" id="btn-reject-call">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <span class="call-action-label" id="lbl-reject">Từ chối</span>
+        </div>
+        <div class="call-action-item">
+            <button class="btn-accept-call" id="btn-accept-call">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            </button>
+            <span class="call-action-label" id="lbl-accept">Nhấc máy</span>
+        </div>
     </div>
 </div>
 
@@ -214,6 +279,16 @@
 </div>
 
 <div id="call-overlay">
+    <!-- Waiting screen shown before call connects -->
+    <div id="call-waiting">
+        <div id="call-waiting-avatar"></div>
+        <div id="call-waiting-name"></div>
+        <div id="call-waiting-status"></div>
+        <button id="btn-cancel-call" class="btn-cancel-call">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <span id="lbl-cancel-call">Hủy</span>
+        </button>
+    </div>
     <div class="call-videos" id="call-videos">
         <video id="remote-video" autoplay playsinline></video>
         <video id="local-video" autoplay playsinline muted></video>
@@ -262,11 +337,14 @@ var I18N = {
         enterPassword: 'Enter password...',
         calling: 'Calling...', connecting: 'Connecting...', inCall: 'In call',
         callDeclined: 'declined the call', callEnded: 'Call ended with',
-        callBusy: 'is busy in another call', missedCall: 'You have a missed call from',
-        onlineStatus: 'Online'
+        callBusy: 'is busy in another call', missedCall: 'You have a missed call from', callOffline: 'lost connection during call',
+        onlineStatus: 'Online',
+        profileTitle: 'My Profile', profileName: 'Display Name', profileLang: 'Language',
+        profilePhone: 'Phone Number', profileEmail: 'Email', profileColor: 'Choose avatar color',
+        profileSaved: 'Saved!', profileErrName: 'Name cannot be empty',
+        searchPlaceholder: 'Search name, phone, email...'
     },
     vi: {
-        title: 'TransChat', subtitle: 'Chat dịch thuật thời gian thực',
         chooseLang: 'Chọn ngôn ngữ của bạn',
         yourName: 'Tên của bạn', enterName: 'Nhập tên của bạn...', yourLang: 'Ngôn ngữ',
         joinChat: 'Tham gia', reconnecting: 'Đang kết nối lại...',
@@ -286,11 +364,14 @@ var I18N = {
         enterPassword: 'Nhập mật khẩu...',
         calling: 'Đang gọi...', connecting: 'Đang kết nối...', inCall: 'Đang gọi',
         callDeclined: 'đã từ chối cuộc gọi', callEnded: 'Cuộc gọi kết thúc với',
-        callBusy: 'đang bận trong cuộc gọi khác', missedCall: 'Bạn có cuộc gọi nhỡ từ',
-        onlineStatus: 'Trực tuyến'
+        callBusy: 'đang bận trong cuộc gọi khác', missedCall: 'Bạn có cuộc gọi nhỡ từ', callOffline: 'mất kết nối trong cuộc gọi',
+        onlineStatus: 'Trực tuyến',
+        profileTitle: 'Hồ sơ cá nhân', profileName: 'Tên hiển thị', profileLang: 'Ngôn ngữ',
+        profilePhone: 'Số điện thoại', profileEmail: 'Email', profileColor: 'Chọn màu đại diện',
+        profileSaved: 'Đã lưu!', profileErrName: 'Tên không được để trống',
+        searchPlaceholder: 'Tìm tên, SĐT, email...'
     },
     ja: {
-        title: 'TransChat', subtitle: 'リアルタイム翻訳チャット',
         chooseLang: '言語を選択',
         yourName: '名前', enterName: '名前を入力...', yourLang: '言語',
         joinChat: '参加', reconnecting: '再接続中...',
@@ -310,8 +391,12 @@ var I18N = {
         enterPassword: 'パスワード...',
         calling: '呼び出し中...', connecting: '接続中...', inCall: '通話中',
         callDeclined: '通話を拒否しました', callEnded: '通話終了',
-        callBusy: '他の通話中です', missedCall: '不在着信：',
-        onlineStatus: 'オンライン'
+        callBusy: '他の通話中です', missedCall: '不在着信：', callOffline: '通話中に接続が切れました',
+        onlineStatus: 'オンライン',
+        profileTitle: 'プロフィール', profileName: '表示名', profileLang: '言語',
+        profilePhone: '電話番号', profileEmail: 'メール', profileColor: 'アバターの色を選択',
+        profileSaved: '保存しました！', profileErrName: '名前を入力してください',
+        searchPlaceholder: '名前、電話、メールで検索...'
     },
     ko: {
         title: 'TransChat', subtitle: '실시간 번역 채팅',
@@ -334,11 +419,14 @@ var I18N = {
         enterPassword: '비밀번호...',
         calling: '전화 중...', connecting: '연결 중...', inCall: '통화 중',
         callDeclined: '통화를 거부했습니다', callEnded: '통화 종료',
-        callBusy: '다른 통화 중입니다', missedCall: '부재중 전화：',
-        onlineStatus: '온라인'
+        callBusy: '다른 통화 중입니다', missedCall: '부재중 전화：', callOffline: '통화 중 연결이 끊겼습니다',
+        onlineStatus: '온라인',
+        profileTitle: '내 프로필', profileName: '표시 이름', profileLang: '언어',
+        profilePhone: '전화번호', profileEmail: '이메일', profileColor: '아바타 색상 선택',
+        profileSaved: '저장되었습니다!', profileErrName: '이름을 입력하세요',
+        searchPlaceholder: '이름, 전화, 이메일 검색...'
     },
     zh: {
-        title: 'TransChat', subtitle: '实时翻译聊天',
         chooseLang: '选择你的语言',
         yourName: '昵称', enterName: '输入昵称...', yourLang: '语言',
         joinChat: '加入', reconnecting: '重新连接...',
@@ -358,11 +446,14 @@ var I18N = {
         enterPassword: '输入密码...',
         calling: '呼叫中...', connecting: '连接中...', inCall: '通话中',
         callDeclined: '拒绝了通话', callEnded: '通话结束',
-        callBusy: '正在通话中', missedCall: '未接来电：',
-        onlineStatus: '在线'
+        callBusy: '正在通话中', missedCall: '未接来电：', callOffline: '通话中断开了连接',
+        onlineStatus: '在线',
+        profileTitle: '个人资料', profileName: '显示名称', profileLang: '语言',
+        profilePhone: '手机号', profileEmail: '邮箱', profileColor: '选择头像颜色',
+        profileSaved: '已保存！', profileErrName: '姓名不能为空',
+        searchPlaceholder: '搜索姓名、手机、邮箱...'
     },
     fr: {
-        title: 'TransChat', subtitle: 'Chat avec traduction en temps réel',
         chooseLang: 'Choisissez votre langue',
         yourName: 'Votre nom', enterName: 'Entrez votre nom...', yourLang: 'Langue',
         joinChat: 'Rejoindre', reconnecting: 'Reconnexion...',
@@ -382,11 +473,14 @@ var I18N = {
         enterPassword: 'Mot de passe...',
         calling: 'Appel en cours...', connecting: 'Connexion...', inCall: 'En appel',
         callDeclined: 'a refusé l\'appel', callEnded: 'Appel terminé avec',
-        callBusy: 'est en appel', missedCall: 'Appel manqué de',
-        onlineStatus: 'En ligne'
+        callBusy: 'est en appel', missedCall: 'Appel manqué de', callOffline: 'connexion perdue pendant l\'appel',
+        onlineStatus: 'En ligne',
+        profileTitle: 'Mon profil', profileName: 'Nom affiché', profileLang: 'Langue',
+        profilePhone: 'Téléphone', profileEmail: 'E-mail', profileColor: 'Couleur d\'avatar',
+        profileSaved: 'Enregistré !', profileErrName: 'Le nom ne peut pas être vide',
+        searchPlaceholder: 'Rechercher nom, tél., e-mail...'
     },
     de: {
-        title: 'TransChat', subtitle: 'Echtzeit-Übersetzungschat',
         chooseLang: 'Wählen Sie Ihre Sprache',
         yourName: 'Ihr Name', enterName: 'Name eingeben...', yourLang: 'Sprache',
         joinChat: 'Beitreten', reconnecting: 'Verbindung wird wiederhergestellt...',
@@ -406,11 +500,14 @@ var I18N = {
         enterPassword: 'Passwort...',
         calling: 'Anruf läuft...', connecting: 'Verbinden...', inCall: 'Im Gespräch',
         callDeclined: 'hat den Anruf abgelehnt', callEnded: 'Anruf beendet mit',
-        callBusy: 'ist in einem anderen Gespräch', missedCall: 'Verpasster Anruf von',
-        onlineStatus: 'Online'
+        callBusy: 'ist in einem anderen Gespräch', missedCall: 'Verpasster Anruf von', callOffline: 'Verbindung während Anruf getrennt',
+        onlineStatus: 'Online',
+        profileTitle: 'Mein Profil', profileName: 'Anzeigename', profileLang: 'Sprache',
+        profilePhone: 'Telefon', profileEmail: 'E-Mail', profileColor: 'Avatar-Farbe wählen',
+        profileSaved: 'Gespeichert!', profileErrName: 'Name darf nicht leer sein',
+        searchPlaceholder: 'Name, Telefon, E-Mail suchen...'
     },
     es: {
-        title: 'TransChat', subtitle: 'Chat con traducción en tiempo real',
         chooseLang: 'Elige tu idioma',
         yourName: 'Tu nombre', enterName: 'Ingresa tu nombre...', yourLang: 'Idioma',
         joinChat: 'Unirse', reconnecting: 'Reconectando...',
@@ -430,11 +527,14 @@ var I18N = {
         enterPassword: 'Contraseña...',
         calling: 'Llamando...', connecting: 'Conectando...', inCall: 'En llamada',
         callDeclined: 'rechazó la llamada', callEnded: 'Llamada terminada con',
-        callBusy: 'está en otra llamada', missedCall: 'Llamada perdida de',
-        onlineStatus: 'En línea'
+        callBusy: 'está en otra llamada', missedCall: 'Llamada perdida de', callOffline: 'conexión perdida durante la llamada',
+        onlineStatus: 'En línea',
+        profileTitle: 'Mi perfil', profileName: 'Nombre mostrado', profileLang: 'Idioma',
+        profilePhone: 'Teléfono', profileEmail: 'Correo', profileColor: 'Elige color de avatar',
+        profileSaved: '¡Guardado!', profileErrName: 'El nombre no puede estar vacío',
+        searchPlaceholder: 'Buscar nombre, teléfono, correo...'
     },
     th: {
-        title: 'TransChat', subtitle: 'แชทแปลภาษาแบบเรียลไทม์',
         chooseLang: 'เลือกภาษาของคุณ',
         yourName: 'ชื่อของคุณ', enterName: 'ใส่ชื่อ...', yourLang: 'ภาษา',
         joinChat: 'เข้าร่วม', reconnecting: 'กำลังเชื่อมต่อ...',
@@ -454,11 +554,14 @@ var I18N = {
         enterPassword: 'รหัสผ่าน...',
         calling: 'กำลังโทร...', connecting: 'กำลังเชื่อมต่อ...', inCall: 'กำลังคุย',
         callDeclined: 'ปฏิเสธการโทร', callEnded: 'สิ้นสุดการโทรกับ',
-        callBusy: 'กำลังคุยสายอื่นอยู่', missedCall: 'สายที่ไม่ได้รับจาก',
-        onlineStatus: 'ออนไลน์'
+        callBusy: 'กำลังคุยสายอื่นอยู่', missedCall: 'สายที่ไม่ได้รับจาก', callOffline: 'การเชื่อมต่อขาดหายระหว่างโทร',
+        onlineStatus: 'ออนไลน์',
+        profileTitle: 'โปรไฟล์ของฉัน', profileName: 'ชื่อที่แสดง', profileLang: 'ภาษา',
+        profilePhone: 'เบอร์โทร', profileEmail: 'อีเมล', profileColor: 'เลือกสีอวาตาร์',
+        profileSaved: 'บันทึกแล้ว!', profileErrName: 'กรุณากรอกชื่อ',
+        searchPlaceholder: 'ค้นหาชื่อ, เบอร์โทร, อีเมล...'
     },
     ru: {
-        title: 'TransChat', subtitle: 'Чат с переводом в реальном времени',
         chooseLang: 'Выберите язык',
         yourName: 'Ваше имя', enterName: 'Введите имя...', yourLang: 'Язык',
         joinChat: 'Войти', reconnecting: 'Переподключение...',
@@ -478,11 +581,14 @@ var I18N = {
         enterPassword: 'Пароль...',
         calling: 'Звонок...', connecting: 'Подключение...', inCall: 'В звонке',
         callDeclined: 'отклонил звонок', callEnded: 'Звонок завершён с',
-        callBusy: 'занят в другом звонке', missedCall: 'Пропущенный звонок от',
-        onlineStatus: 'Онлайн'
+        callBusy: 'занят в другом звонке', missedCall: 'Пропущенный звонок от', callOffline: 'соединение прервано во время звонка',
+        onlineStatus: 'Онлайн',
+        profileTitle: 'Мой профиль', profileName: 'Отображаемое имя', profileLang: 'Язык',
+        profilePhone: 'Телефон', profileEmail: 'E-mail', profileColor: 'Выбрать цвет аватара',
+        profileSaved: 'Сохранено!', profileErrName: 'Имя не может быть пустым',
+        searchPlaceholder: 'Поиск по имени, телефону, e-mail...'
     },
     ar: {
-        title: 'TransChat', subtitle: 'دردشة مترجمة في الوقت الحقيقي',
         chooseLang: 'اختر لغتك',
         yourName: 'اسمك', enterName: 'أدخل اسمك...', yourLang: 'اللغة',
         joinChat: 'انضمام', reconnecting: 'إعادة الاتصال...',
@@ -502,11 +608,14 @@ var I18N = {
         enterPassword: 'كلمة المرور...',
         calling: 'جارٍ الاتصال...', connecting: 'جارٍ الاتصال...', inCall: 'في مكالمة',
         callDeclined: 'رفض المكالمة', callEnded: 'انتهت المكالمة مع',
-        callBusy: 'في مكالمة أخرى', missedCall: 'مكالمة فائتة من',
-        onlineStatus: 'متصل'
+        callBusy: 'في مكالمة أخرى', missedCall: 'مكالمة فائتة من', callOffline: 'انقطع الاتصال أثناء المكالمة',
+        onlineStatus: 'متصل',
+        profileTitle: 'ملفي الشخصي', profileName: 'الاسم المعروض', profileLang: 'اللغة',
+        profilePhone: 'الهاتف', profileEmail: 'البريد الإلكتروني', profileColor: 'اختر لون الأفاتار',
+        profileSaved: 'تم الحفظ!', profileErrName: 'لا يمكن أن يكون الاسم فارغًا',
+        searchPlaceholder: 'بحث بالاسم، الهاتف، البريد...'
     },
     pt: {
-        title: 'TransChat', subtitle: 'Chat com tradução em tempo real',
         chooseLang: 'Escolha seu idioma',
         yourName: 'Seu nome', enterName: 'Digite seu nome...', yourLang: 'Idioma',
         joinChat: 'Entrar', reconnecting: 'Reconectando...',
@@ -526,8 +635,12 @@ var I18N = {
         enterPassword: 'Senha...',
         calling: 'Chamando...', connecting: 'Conectando...', inCall: 'Em chamada',
         callDeclined: 'recusou a chamada', callEnded: 'Chamada encerrada com',
-        callBusy: 'está em outra chamada', missedCall: 'Chamada perdida de',
-        onlineStatus: 'Online'
+        callBusy: 'está em outra chamada', missedCall: 'Chamada perdida de', callOffline: 'conexão perdida durante a chamada',
+        onlineStatus: 'Online',
+        profileTitle: 'Meu perfil', profileName: 'Nome exibido', profileLang: 'Idioma',
+        profilePhone: 'Telefone', profileEmail: 'E-mail', profileColor: 'Escolha a cor do avatar',
+        profileSaved: 'Salvo!', profileErrName: 'O nome não pode estar vazio',
+        searchPlaceholder: 'Buscar nome, telefone, e-mail...'
     }
 };
 
@@ -558,7 +671,7 @@ function applyI18n() {
         if (emptySpans[1]) emptySpans[1].textContent = t('clickUser');
     }
     // Buttons
-    $('btn-admin').title = t('settings');
+    $('btn-profile').title = t('settings');
     $('btn-logout').title = t('logout');
     $('btn-notif').title = t('notifications');
     $('btn-attach').title = t('sendImage');
@@ -570,14 +683,12 @@ function applyI18n() {
     $('btn-hangup').title = t('endCall');
     // Incoming call
     document.querySelector('.caller-info').textContent = t('callIncoming');
-    // Admin
-    document.querySelector('#admin-modal h2 span').textContent = t('adminPanel');
-    document.querySelector('#admin-login-form label').textContent = t('adminPass');
-    admPass.placeholder = t('enterPassword');
-    $('btn-adm-login').textContent = t('login');
-    $('btn-adm-cancel1').textContent = t('cancel');
-    $('btn-adm-save').textContent = t('save');
-    $('btn-adm-close').textContent = t('close');
+    // Profile
+    $('btn-profile-save').textContent = t('save');
+    $('btn-profile-cancel').textContent = t('cancel');
+    // Search placeholder
+    var userSearchEl = $('user-search');
+    if (userSearchEl) userSearchEl.placeholder = t('searchPlaceholder');
     // AI
     var aiInput = $('ai-input');
     if (aiInput) aiInput.placeholder = t('askAI');
@@ -604,11 +715,9 @@ var btnAttach = $('btn-attach'), fileInput = $('file-input');
 var imgPreviewBar = $('img-preview-bar'), imgPreviewThumb = $('img-preview-thumb'), imgPreviewName = $('img-preview-name'), imgPreviewRemove = $('img-preview-remove');
 var lightbox = $('lightbox'), lightboxImg = $('lightbox-img');
 var btnLogout = $('btn-logout');
-var adminOverlay = $('admin-overlay'), adminLoginForm = $('admin-login-form'), adminConfig = $('admin-config');
-var admPass = $('adm-pass'), admKey = $('adm-key'), admModels = $('adm-models');
-var admUrl = $('adm-url'), admNewpass = $('adm-newpass'), adminMsg = $('admin-msg');
 
-var ws, myName, myLang, adminLoggedPass = null;
+var ws, myName, myLang;
+var _pingInterval = null;
 var typingUsers = {};
 var typingTimeout = null;
 var lastTypingSent = 0;
@@ -627,6 +736,10 @@ if (saved && saved.name) {
     inpName.value = myName;
     inpLang.value = myLang;
     applyI18n();
+    // Hide form, show loading spinner immediately
+    $('login-step-lang').style.display = 'none';
+    $('login-step-name').style.display = 'none';
+    $('login-loading').style.display = 'flex';
     connect();
 }
 
@@ -673,6 +786,9 @@ function doJoin() {
     myLang = inpLang.value;
     localStorage.setItem('transchat_user', JSON.stringify({ name: myName, lang: myLang }));
     applyI18n();
+    // Show loading spinner
+    $('login-step-name').style.display = 'none';
+    $('login-loading').style.display = 'flex';
     connect();
 }
 
@@ -683,27 +799,39 @@ function connect() {
     ws = new WebSocket(WS_URL);
     ws.onopen = function() {
         statusBar.style.display = 'none';
-        ws.send(JSON.stringify({ type: 'join', name: myName, lang: myLang }));
+        var sp = {}; try { sp = JSON.parse(localStorage.getItem('transchat_profile') || '{}'); } catch {}
+        ws.send(JSON.stringify({ type: 'join', name: myName, lang: myLang, phone: sp.phone || '', email: sp.email || '', avatarColor: sp.avatarColor || '', avatarImage: sp.avatarImage || '' }));
     };
     ws.onmessage = function(e) {
         var m; try { m = JSON.parse(e.data); } catch { return; }
         handle(m);
     };
     ws.onclose = function() {
+        if (_pingInterval) { clearInterval(_pingInterval); _pingInterval = null; }
         if (chatScreen.style.display === 'flex') {
             statusBar.style.display = 'block';
             setTimeout(connect, 3000);
         } else {
+            // Restore login form if connection failed
+            $('login-loading').style.display = 'none';
+            $('login-step-name').style.display = 'block';
             showLoginErr('Cannot connect to server');
         }
     };
     ws.onerror = function() { ws.close(); };
+
+    // App-level ping every 5s to keep server lastPong fresh
+    if (_pingInterval) clearInterval(_pingInterval);
+    _pingInterval = setInterval(function() {
+        if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'ping' }));
+    }, 5000);
 }
 
 function wsSend(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
 
 // ═══ MESSAGE HANDLER ═══
 function handle(m) {
+    if (m.type === 'pong') { return; } // heartbeat response, ignore
     if (m.type === 'error') { showLoginErr(m.text); return; }
     if (m.type === 'joined') {
         loginScreen.style.display = 'none';
@@ -721,13 +849,12 @@ function handle(m) {
     if (m.type === 'deleted-user') { removeMsgsByUser(m.user); return; }
     if (m.type === 'react') { applyReaction(m); return; }
     if (m.type === 'typing') { handleTyping(m); return; }
-    if (m.type === 'admin-auth') { handleAdminAuth(m); return; }
-    if (m.type === 'admin-result') { handleAdminResult(m); return; }
     // Video call signaling
     if (m.type === 'call-request') { handleIncomingCall(m); return; }
     if (m.type === 'call-accept') { handleCallAccepted(m); return; }
     if (m.type === 'call-reject') { handleCallRejected(m); return; }
     if (m.type === 'call-end') { handleCallEnded(m); return; }
+    if (m.type === 'call-offline') { handleCallOffline(m); return; }
     if (m.type === 'webrtc-offer') { handleOffer(m); return; }
     if (m.type === 'webrtc-answer') { handleAnswer(m); return; }
     if (m.type === 'webrtc-ice') { handleIce(m); return; }
@@ -739,14 +866,9 @@ function handle(m) {
 
 // ═══ RENDER USERS ═══
 function renderUsers(users) {
-    var on = users.filter(function(u) { return u.online && u.name !== myName; });
-    var off = users.filter(function(u) { return !u.online && u.name !== myName; });
-    onlineLabel.textContent = t('online') + ' (' + on.length + ')';
-    offlineLabel.textContent = t('offline') + ' (' + off.length + ')';
-    onlineList.innerHTML = '';
-    offlineList.innerHTML = '';
-    on.forEach(function(u) { onlineList.appendChild(makeUserItem(u, true)); });
-    off.forEach(function(u) { offlineList.appendChild(makeUserItem(u, false)); });
+    _lastUsers = users; // cache for search
+    var q = ($('user-search') || {}).value ? $('user-search').value.trim().toLowerCase() : '';
+    filterSidebar(q);
 
     // Update conv header if current peer's status changed
     if (activeConv) {
@@ -794,16 +916,26 @@ function makeUserItem(u, online) {
         callBtn = '<button class="user-call" title="Video call ' + esc(u.name) + '" onclick="event.stopPropagation();startCall(\'' + esc(u.name).replace(/'/g, "\\'") + '\')"><svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></button>';
     }
     var statusDot = online ? (usersCallState[u.name] ? ' incall' : ' on') : '';
+    var avatarColor = u.avatarColor || '#6366f1';
+    var avatarInner = u.avatarImage
+        ? '<img src="' + u.avatarImage + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%">'
+        : initials;
+    var avatarStyle = u.avatarImage ? 'background:transparent' : 'background:' + avatarColor;
+    // sub-info: phone and/or email if available
+    var contactInfo = '';
+    if (u.phone) contactInfo += '<span class="user-contact">' + esc(u.phone) + '</span>';
+    if (u.email) contactInfo += '<span class="user-contact">' + esc(u.email) + '</span>';
     div.innerHTML =
         '<div class="user-avatar-wrap">' +
-            '<div class="user-avatar">' + initials + '</div>' +
+            '<div class="user-avatar" style="' + avatarStyle + '">' + avatarInner + '</div>' +
             '<div class="user-avatar-status' + statusDot + '"></div>' +
         '</div>' +
         '<div class="user-info">' +
-            '<span class="user-name">' + esc(u.name) + (u.name === myName ? ' (you)' : '') + '</span>' +
+            '<span class="user-name">' + esc(u.name) + '</span>' +
             '<div class="user-meta">' +
                 '<span class="user-lang">' + (LANG_NAMES[u.lang] || u.lang) + '</span>' + extra +
             '</div>' +
+            (contactInfo ? '<div class="user-contacts">' + contactInfo + '</div>' : '') +
         '</div>' +
         unreadHtml + callBtn;
     if (u.name !== myName) {
@@ -822,6 +954,7 @@ var emptyConv = $('empty-conv');
 
 function switchConv(target) {
     activeConv = target;
+    var pp = $('peer-profile-popup'); if (pp) pp.classList.remove('open');
     var inputArea = $('input-area');
     var chatHeader = $('chat-header');
     // Update UI
@@ -846,14 +979,24 @@ function switchConv(target) {
             }
         });
         // Update conv header avatar
+        var hdrUser = _lastUsers && _lastUsers.find(function(x) { return x.name === target; });
         var hdrAvatarWrap = convHeader.querySelector('.conv-hdr-avatar');
+        function applyHdrAvatar(el) {
+            if (hdrUser && hdrUser.avatarImage) {
+                el.style.background = 'transparent';
+                el.innerHTML = '<img src="' + hdrUser.avatarImage + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%"><div class="conv-hdr-avatar-status"></div>';
+            } else {
+                el.style.background = (hdrUser && hdrUser.avatarColor) || '#6366f1';
+                el.innerHTML = target.charAt(0).toUpperCase() + '<div class="conv-hdr-avatar-status"></div>';
+            }
+        }
         if (!hdrAvatarWrap) {
             var avatarEl = document.createElement('div');
             avatarEl.className = 'conv-hdr-avatar';
-            avatarEl.innerHTML = target.charAt(0).toUpperCase() + '<div class="conv-hdr-avatar-status"></div>';
+            applyHdrAvatar(avatarEl);
             convHeader.insertBefore(avatarEl, convName.parentElement || convName);
         } else {
-            hdrAvatarWrap.childNodes[0].textContent = target.charAt(0).toUpperCase();
+            applyHdrAvatar(hdrAvatarWrap);
         }
         updateConvHeaderStatus(userOnline);
         msgInput.placeholder = t('messageTo') + ' ' + target + '...';
@@ -1356,18 +1499,37 @@ function removeMsgsByUser(userName) {
 
 // ═══ IMAGE UPLOAD ═══
 btnAttach.onclick = function() { fileInput.click(); };
-fileInput.onchange = function() {
-    var file = this.files[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { alert('Only images allowed'); return; }
+
+function setPendingFile(file) {
+    if (!file || !file.type.startsWith('image/')) { alert('Only images allowed'); return; }
     if (file.size > 10 * 1024 * 1024) { alert('Max 10MB'); return; }
     pendingFile = file;
     imgPreviewThumb.src = URL.createObjectURL(file);
-    imgPreviewName.textContent = file.name;
+    imgPreviewName.textContent = file.name || 'pasted-image.png';
     imgPreviewBar.style.display = 'flex';
-    fileInput.value = '';
     msgInput.focus();
+}
+
+fileInput.onchange = function() {
+    var file = this.files[0];
+    if (file) setPendingFile(file);
+    fileInput.value = '';
 };
+
+// Paste image from clipboard (Ctrl+V)
+document.addEventListener('paste', function(e) {
+    if (!activeConv) return;
+    var items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (var i = 0; i < items.length; i++) {
+        if (items[i].kind === 'file' && items[i].type.startsWith('image/')) {
+            e.preventDefault();
+            var file = items[i].getAsFile();
+            if (file) setPendingFile(file);
+            break;
+        }
+    }
+});
 imgPreviewRemove.onclick = function() {
     pendingFile = null;
     imgPreviewBar.style.display = 'none';
@@ -1603,56 +1765,211 @@ function appendAIMsg(role, text) {
     return div;
 }
 
-// ═══ ADMIN ═══
-$('btn-admin').onclick = function() { adminOverlay.style.display = 'flex'; adminLoginForm.style.display = 'block'; adminConfig.style.display = 'none'; adminMsg.textContent = ''; admPass.value = ''; };
-$('admin-close-x').onclick = closeAdmin;
-$('btn-adm-cancel1').onclick = closeAdmin;
-$('btn-adm-close').onclick = closeAdmin;
-adminOverlay.onclick = function(e) { if (e.target === adminOverlay) closeAdmin(); };
+// ═══ PROFILE ═══
+var profileOverlay = $('profile-overlay');
+var profileAvatarPreview = $('profile-avatar-preview');
+var profileMsg = $('profile-msg');
+var profileColorPicker = $('profile-color-picker');
+var myAvatarColor = '#6366f1';
+var myAvatarImage = ''; // base64 dataURL
 
-function closeAdmin() { adminOverlay.style.display = 'none'; adminLoggedPass = null; }
+// Load saved profile extra data
+var savedProfile = {};
+try { savedProfile = JSON.parse(localStorage.getItem('transchat_profile') || '{}'); } catch {}
+if (savedProfile.avatarImage) myAvatarImage = savedProfile.avatarImage;
+if (savedProfile.avatarColor) myAvatarColor = savedProfile.avatarColor;
 
-$('btn-adm-login').onclick = function() {
-    var pass = admPass.value.trim();
-    if (!pass) return;
-    adminLoggedPass = pass;
-    wsSend({ type: 'admin-login', pass: pass });
-};
-admPass.onkeydown = function(e) { if (e.key === 'Enter') $('btn-adm-login').click(); };
-
-function handleAdminAuth(m) {
-    if (m.ok && m.cfg) {
-        adminLoginForm.style.display = 'none';
-        adminConfig.style.display = 'block';
-        admKey.value = m.cfg.apiKey || '';
-        admModels.value = (m.cfg.models || []).join('\n');
-        admUrl.value = m.cfg.apiUrl || '';
-        admNewpass.value = '';
+function setAvatarPreview(imgDataUrl, color, name) {
+    if (imgDataUrl) {
+        profileAvatarPreview.style.background = 'transparent';
+        profileAvatarPreview.innerHTML = '<img src="' + imgDataUrl + '" alt="">';
     } else {
-        adminLoggedPass = null;
-        adminMsg.textContent = 'Wrong password';
-        adminMsg.className = 'err';
-        adminLoginForm.style.display = 'block';
+        profileAvatarPreview.innerHTML = (name || '?').charAt(0).toUpperCase();
+        profileAvatarPreview.style.background = color || '#6366f1';
     }
 }
 
-$('btn-adm-save').onclick = function() {
-    var models = admModels.value.split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
-    wsSend({
-        type: 'admin-save', pass: adminLoggedPass,
-        cfg: {
-            apiKey: admKey.value.trim(),
-            models: models,
-            apiUrl: admUrl.value.trim(),
-            adminPass: admNewpass.value.trim() || undefined
-        }
+// Canvas-compress image to JPEG, max 200x200, quality 0.82
+function compressAvatar(file, cb) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+            var size = 200;
+            var canvas = document.createElement('canvas');
+            canvas.width = size; canvas.height = size;
+            var ctx = canvas.getContext('2d');
+            // crop to square center
+            var s = Math.min(img.width, img.height);
+            var ox = (img.width - s) / 2, oy = (img.height - s) / 2;
+            ctx.drawImage(img, ox, oy, s, s, 0, 0, size, size);
+            cb(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function openProfile() {
+    // Apply current language to profile modal
+    $('profile-title').textContent = t('profileTitle');
+    $('lbl-profile-name').textContent = t('profileName');
+    $('lbl-profile-lang').textContent = t('profileLang');
+    $('lbl-profile-phone').textContent = t('profilePhone');
+    $('lbl-profile-email').textContent = t('profileEmail');
+    document.querySelector('.profile-avatar-hint').textContent = t('profileColor');
+    $('btn-profile-save').textContent = t('save');
+    $('btn-profile-cancel').textContent = t('cancel');
+
+    profileOverlay.style.display = 'flex';
+    $('profile-name').value = myName || '';
+    $('profile-lang').value = myLang || 'en';
+    $('profile-phone').value = savedProfile.phone || '';
+    $('profile-email').value = savedProfile.email || '';
+    myAvatarColor = savedProfile.avatarColor || '#6366f1';
+    myAvatarImage = savedProfile.avatarImage || '';
+    setAvatarPreview(myAvatarImage, myAvatarColor, myName);
+    // Mark selected color
+    profileColorPicker.querySelectorAll('.color-dot').forEach(function(dot) {
+        dot.classList.toggle('selected', dot.dataset.color === myAvatarColor);
     });
+    profileMsg.textContent = '';
+}
+
+function closeProfile() { profileOverlay.style.display = 'none'; }
+
+$('btn-profile').onclick = openProfile;
+$('profile-close-x').onclick = closeProfile;
+$('btn-profile-cancel').onclick = closeProfile;
+profileOverlay.onclick = function(e) { if (e.target === profileOverlay) closeProfile(); };
+
+// Avatar image upload
+$('btn-avatar-upload').onclick = function() { $('avatar-file-input').click(); };
+$('avatar-file-input').onchange = function() {
+    var file = this.files[0];
+    if (!file) return;
+    compressAvatar(file, function(dataUrl) {
+        myAvatarImage = dataUrl;
+        setAvatarPreview(myAvatarImage, myAvatarColor, myName);
+        // Deselect color dots since image overrides
+        profileColorPicker.querySelectorAll('.color-dot').forEach(function(d) { d.classList.remove('selected'); });
+    });
+    this.value = '';
 };
 
-function handleAdminResult(m) {
-    adminMsg.textContent = m.ok ? 'Saved successfully!' : 'Save failed';
-    adminMsg.className = m.ok ? 'ok' : 'err';
-    if (m.ok) setTimeout(function() { adminMsg.textContent = ''; }, 3000);
+// Color picker — clears avatar image
+profileColorPicker.querySelectorAll('.color-dot').forEach(function(dot) {
+    dot.onclick = function() {
+        myAvatarColor = dot.dataset.color;
+        myAvatarImage = ''; // image cleared when color chosen
+        setAvatarPreview('', myAvatarColor, myName);
+        profileColorPicker.querySelectorAll('.color-dot').forEach(function(d) {
+            d.classList.toggle('selected', d === dot);
+        });
+    };
+});
+
+$('btn-profile-save').onclick = function() {
+    var newName = $('profile-name').value.trim();
+    var newLang = $('profile-lang').value;
+    var phone = $('profile-phone').value.trim();
+    var email = $('profile-email').value.trim();
+    if (!newName) { profileMsg.textContent = t('profileErrName'); profileMsg.className = 'err'; return; }
+
+    // Save to localStorage
+    savedProfile = { phone: phone, email: email, avatarColor: myAvatarColor, avatarImage: myAvatarImage };
+    localStorage.setItem('transchat_profile', JSON.stringify(savedProfile));
+
+    // Update language locally + re-apply i18n if changed
+    var langChanged = newLang !== myLang;
+    myLang = newLang;
+    var stored = {};
+    try { stored = JSON.parse(localStorage.getItem('transchat_user') || '{}'); } catch {}
+    stored.lang = myLang;
+    localStorage.setItem('transchat_user', JSON.stringify(stored));
+    if (langChanged) applyI18n();
+
+    // Notify server (avatarImage sent separately to avoid large WS message)
+    wsSend({ type: 'profile-update', lang: newLang, phone: phone, email: email, avatarColor: myAvatarColor, avatarImage: myAvatarImage });
+
+    // Update header badge
+    myBadge.textContent = myName + ' (' + (LANG_NAMES[myLang] || myLang) + ')';
+
+    profileMsg.textContent = t('profileSaved');
+    profileMsg.className = 'ok';
+    setTimeout(function() { profileMsg.textContent = ''; closeProfile(); }, 1200);
+};
+
+// ═══ PEER PROFILE POPUP ═══
+var peerPopup = $('peer-profile-popup');
+
+function openPeerProfile() {
+    if (!activeConv) return;
+    var u = _lastUsers && _lastUsers.find(function(x) { return x.name === activeConv; });
+    var avEl = $('peer-pp-avatar');
+    if (u && u.avatarImage) {
+        avEl.style.background = 'transparent';
+        avEl.innerHTML = '<img src="' + u.avatarImage + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';
+    } else {
+        avEl.style.background = (u && u.avatarColor) || '#6366f1';
+        avEl.innerHTML = activeConv.charAt(0).toUpperCase();
+    }
+    $('peer-pp-name').textContent = activeConv;
+    var langVal = u && (LANG_NAMES[u.lang] || u.lang);
+    $('peer-pp-lang-val').textContent = langVal || '';
+    $('peer-pp-lang').className = 'peer-pp-row' + (langVal ? ' has-val' : '');
+    var phoneVal = u && u.phone;
+    $('peer-pp-phone-val').textContent = phoneVal || '';
+    $('peer-pp-phone').className = 'peer-pp-row' + (phoneVal ? ' has-val' : '');
+    var emailVal = u && u.email;
+    $('peer-pp-email-val').textContent = emailVal || '';
+    $('peer-pp-email').className = 'peer-pp-row' + (emailVal ? ' has-val' : '');
+    peerPopup.classList.add('open');
+}
+
+function closePeerProfile() { peerPopup.classList.remove('open'); }
+
+$('peer-pp-close').onclick = closePeerProfile;
+
+// Click on conv header avatar (delegated, avatar is added dynamically)
+convHeader.addEventListener('click', function(e) {
+    var av = e.target.closest('.conv-hdr-avatar');
+    if (av) {
+        peerPopup.classList.contains('open') ? closePeerProfile() : openPeerProfile();
+    }
+});
+// Click backdrop to close
+peerPopup.addEventListener('click', function(e) {
+    if (e.target === peerPopup) closePeerProfile();
+});
+
+// ═══ SEARCH ═══
+var _lastUsers = []; // cache for search filtering
+
+$('user-search').addEventListener('input', function() {
+    var q = this.value.trim().toLowerCase();
+    filterSidebar(q);
+});
+
+function filterSidebar(q) {
+    var on = _lastUsers.filter(function(u) { return u.online && u.name !== myName; });
+    var off = _lastUsers.filter(function(u) { return !u.online && u.name !== myName; });
+    if (q) {
+        function match(u) {
+            if ((u.name || '').toLowerCase().includes(q)) return true;
+            if ((u.phone || '').toLowerCase().includes(q)) return true;
+            if ((u.email || '').toLowerCase().includes(q)) return true;
+            return false;
+        }
+        on = on.filter(match);
+        off = off.filter(match);
+    }
+    onlineLabel.textContent = t('online') + ' (' + on.length + ')';
+    offlineLabel.textContent = t('offline') + ' (' + off.length + ')';
+    onlineList.innerHTML = '';
+    offlineList.innerHTML = '';
+    on.forEach(function(u) { onlineList.appendChild(makeUserItem(u, true)); });
+    off.forEach(function(u) { offlineList.appendChild(makeUserItem(u, false)); });
 }
 
 // ═══ HELPERS ═══
@@ -1737,6 +2054,31 @@ var ICE_SERVERS = [
     { urls: 'stun:stun2.l.google.com:19302' }
 ];
 
+function showCallWaiting(name, statusKey) {
+    var avatarColor = '#6366f1';
+    var avatarImage = '';
+    if (_lastUsers) {
+        var u = _lastUsers.find(function(x) { return x.name === name; });
+        if (u && u.avatarColor) avatarColor = u.avatarColor;
+        if (u && u.avatarImage) avatarImage = u.avatarImage;
+    }
+    var waitingAvatar = $('call-waiting-avatar');
+    if (avatarImage) {
+        waitingAvatar.style.background = 'transparent';
+        waitingAvatar.innerHTML = '<img src="' + avatarImage + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';
+    } else {
+        waitingAvatar.style.background = avatarColor;
+        waitingAvatar.textContent = name.charAt(0).toUpperCase();
+    }
+    $('call-waiting-name').textContent = name;
+    $('call-waiting-status').textContent = t(statusKey);
+    $('call-waiting').classList.remove('hidden');
+}
+
+function hideCallWaiting() {
+    $('call-waiting').classList.add('hidden');
+}
+
 function startCall(targetName) {
     if (callPeer) { alert('Already in a call'); return; }
     callPeer = targetName;
@@ -1745,6 +2087,7 @@ function startCall(targetName) {
     // Show overlay immediately with "Calling..." state
     callOverlay.classList.add('active');
     callTimer.textContent = t('calling');
+    showCallWaiting(targetName, 'calling');
     localStreamPromise = initLocalStream();
 }
 
@@ -1756,7 +2099,16 @@ function handleIncomingCall(m) {
     }
     callPeer = m.from;
     $('caller-name').textContent = m.from;
-    $('caller-avatar').textContent = m.from.charAt(0).toUpperCase();
+    // Avatar: use image if available
+    var callerAvEl = $('caller-avatar');
+    var callerUser = _lastUsers && _lastUsers.find(function(x) { return x.name === m.from; });
+    if (callerUser && callerUser.avatarImage) {
+        callerAvEl.style.background = 'transparent';
+        callerAvEl.innerHTML = '<img src="' + callerUser.avatarImage + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';
+    } else {
+        callerAvEl.style.background = (callerUser && callerUser.avatarColor) || '#6366f1';
+        callerAvEl.innerHTML = m.from.charAt(0).toUpperCase();
+    }
     incomingOverlay.style.display = 'block';
     incomingCall.style.display = 'block';
     playRingtone();
@@ -1769,6 +2121,7 @@ $('btn-accept-call').onclick = async function() {
     callPeerName.textContent = callPeer;
     callOverlay.classList.add('active');
     callTimer.textContent = t('connecting');
+    showCallWaiting(callPeer, 'connecting');
     localStreamPromise = initLocalStream();
     await localStreamPromise;
     wsSend({ type: 'call-accept', to: callPeer });
@@ -1784,6 +2137,7 @@ $('btn-reject-call').onclick = function() {
 
 async function handleCallAccepted(m) {
     callTimer.textContent = t('connecting');
+    $('call-waiting-status').textContent = t('connecting');
     if (localStreamPromise) await localStreamPromise;
     createPeerConnection(true);
 }
@@ -1796,6 +2150,11 @@ function handleCallRejected(m) {
 function handleCallEnded(m) {
     endCallCleanup();
     appendSystem(t('callEnded') + ' ' + m.from, Date.now());
+}
+
+function handleCallOffline(m) {
+    endCallCleanup();
+    appendSystem(m.from + ' ' + t('callOffline'), Date.now());
 }
 
 function handleCallBusy(m) {
@@ -1825,6 +2184,11 @@ function handleUserCallStatus(m) {
 }
 
 btnHangup.onclick = function() {
+    if (callPeer) wsSend({ type: 'call-end', to: callPeer });
+    endCallCleanup();
+};
+
+$('btn-cancel-call').onclick = function() {
     if (callPeer) wsSend({ type: 'call-end', to: callPeer });
     endCallCleanup();
 };
@@ -1985,8 +2349,36 @@ function createPeerConnection(isInitiator) {
     };
 
     peerConnection.oniceconnectionstatechange = function() {
-        if (peerConnection && (peerConnection.iceConnectionState === 'disconnected' || peerConnection.iceConnectionState === 'failed')) {
+        var state = peerConnection && peerConnection.iceConnectionState;
+        if (state === 'failed') {
+            // Immediate end
+            if (callPeer) wsSend({ type: 'call-end', to: callPeer });
             endCallCleanup();
+            appendSystem(t('callOffline'), Date.now());
+        } else if (state === 'disconnected') {
+            // Give 4s to reconnect before ending
+            peerConnection._disconnectTimer = setTimeout(function() {
+                if (peerConnection && peerConnection.iceConnectionState === 'disconnected') {
+                    if (callPeer) wsSend({ type: 'call-end', to: callPeer });
+                    endCallCleanup();
+                    appendSystem(t('callOffline'), Date.now());
+                }
+            }, 4000);
+        } else if (state === 'connected' || state === 'completed') {
+            // Recovered — cancel pending timer
+            if (peerConnection._disconnectTimer) {
+                clearTimeout(peerConnection._disconnectTimer);
+                peerConnection._disconnectTimer = null;
+            }
+        }
+    };
+
+    peerConnection.onconnectionstatechange = function() {
+        var state = peerConnection && peerConnection.connectionState;
+        if (state === 'failed') {
+            if (callPeer) wsSend({ type: 'call-end', to: callPeer });
+            endCallCleanup();
+            appendSystem(t('callOffline'), Date.now());
         }
     };
 
@@ -2135,6 +2527,7 @@ function handleIce(m) {
 }
 
 function startCallTimer() {
+    hideCallWaiting();
     callStartTime = Date.now();
     callTimer.textContent = '00:00';
     callTimerInterval = setInterval(function() {
@@ -2153,7 +2546,10 @@ function endCallCleanup() {
     if (srRestartTimer) { clearTimeout(srRestartTimer); srRestartTimer = null; }
     if (srFlushTimer) { clearTimeout(srFlushTimer); srFlushTimer = null; }
     stopAdaptiveBitrate();
-    if (peerConnection) { peerConnection.close(); peerConnection = null; }
+    if (peerConnection) {
+        if (peerConnection._disconnectTimer) { clearTimeout(peerConnection._disconnectTimer); }
+        peerConnection.close(); peerConnection = null;
+    }
     if (localStream) { localStream.getTracks().forEach(function(t) { t.stop(); }); localStream = null; }
     localStreamPromise = null;
     localVideo.srcObject = null;
@@ -2167,6 +2563,7 @@ function endCallCleanup() {
     currentFacingMode = 'user';
     isSplitView = false;
     callVideosEl.classList.remove('split');
+    $('call-waiting').classList.remove('hidden'); // reset for next call
     splitHint.classList.add('hidden');
     if (splitHintTimer) { clearTimeout(splitHintTimer); splitHintTimer = null; }
     btnMute.classList.remove('active');
