@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TransChat - Real-time Translation</title>
 <link rel="icon" href="data:image/svg+xml,svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='20' width='100' height='100' fill='%236366f1'/><text x='50' y='68' text-anchor='middle' font-size='50' font-family='Arial' font-weight='bold' fill='white'>T</text></svg>">
-<link rel="stylesheet" href="/realtime.css?v=13">
+<link rel="stylesheet" href="/realtime.css?v=14">
 </head>
 <body>
 
@@ -1106,6 +1106,13 @@ function appendChat(msg) {
     if (msg.isHistory) div.style.animation = 'none';
 
     var initials = msg.from.charAt(0).toUpperCase();
+    var _senderInfo = _lastUsers.find(function(u) { return u.name === msg.from; }) || {};
+    var _senderImg   = msg.isOwn ? myAvatarImage : (_senderInfo.avatarImage || '');
+    var _senderColor = msg.isOwn ? myAvatarColor : (_senderInfo.avatarColor || '#6366f1');
+    var avatarHtml = _senderImg
+        ? '<div class="avatar" style="background:transparent"><img src="' + _senderImg + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>'
+        : '<div class="avatar" style="background:' + esc(_senderColor) + '">' + initials + '</div>';
+
     var nameHtml = '<div class="msg-name">' + esc(msg.from) + ' <span style="color:var(--text-3);font-weight:400">' + (LANG_CODES[msg.fromLang] || '') + '</span></div>';
 
     var statusHtml = '';
@@ -1127,7 +1134,7 @@ function appendChat(msg) {
     }
 
     div.innerHTML =
-        '<div class="avatar">' + initials + '</div>' +
+        avatarHtml +
         '<div class="msg-body">' +
             nameHtml +
             '<div class="bubble">' + esc(msg.text) + '</div>' +
@@ -2660,6 +2667,8 @@ function _doStartSR() {
     var accumulatedText = '';   // build up full sentence
     var lastSentText = '';
     var interimDebounce = null;
+    var preTranslateDebounce = null;
+    var lastPreTranslatedText = '';
 
     speechRecognition.onresult = function(e) {
         var interim = '';
@@ -2683,9 +2692,9 @@ function _doStartSR() {
                 if (endsWithPunct) {
                     _flushAccumulated();
                 } else {
-                    // Wait 2s of silence then flush
+                    // Wait 500ms of silence then flush
                     if (srFlushTimer) clearTimeout(srFlushTimer);
-                    srFlushTimer = setTimeout(_flushAccumulated, 2000);
+                    srFlushTimer = setTimeout(_flushAccumulated, 500);
                 }
             } else {
                 // Pick best alternative for interim too
@@ -2706,6 +2715,18 @@ function _doStartSR() {
                 if (!accumulatedText && !interim) return;
                 var full = (accumulatedText ? accumulatedText + ' ' : '') + interim;
                 showMySubtitleInterim(full);
+                // Pre-translate interim text to warm cache (debounced 700ms)
+                if (callPeer && full.trim().length > 3 && full.trim() !== lastPreTranslatedText) {
+                    if (preTranslateDebounce) clearTimeout(preTranslateDebounce);
+                    preTranslateDebounce = setTimeout(function() {
+                        preTranslateDebounce = null;
+                        var pt = full.trim();
+                        if (pt !== lastPreTranslatedText) {
+                            lastPreTranslatedText = pt;
+                            wsSend({ type: 'call-pretranslate', to: callPeer, text: pt });
+                        }
+                    }, 700);
+                }
             }, 66);
         }
     };

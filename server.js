@@ -233,17 +233,15 @@ async function translate(text, from, to) {
         console.warn(`[DeepL ${logTime()}] Ngôn ngữ không hỗ trợ: ${from} → ${to}`);
         return { text, model: null };
     }
-    const dc = loadDeeplCfg();
-    if (!dc.cookie) {
-        console.warn(`[DeepL ${logTime()}] ❌ Chưa có cookie — bỏ qua dịch`);
-        return { text, model: null };
-    }
     const preview = text.length > 40 ? text.slice(0, 40) + '…' : text;
     const t0 = Date.now();
-    const instanceId = parseDeeplCookies(dc.cookie)['dapUid'] || '';
-    const chunks  = splitText(text);
-    const results = new Array(chunks.length);
-    try {
+    const chunks = splitText(text);
+
+    async function attempt() {
+        const dc = loadDeeplCfg();
+        if (!dc.cookie) throw Object.assign(new Error('Chưa có cookie'), { noCookie: true });
+        const instanceId = parseDeeplCookies(dc.cookie)['dapUid'] || '';
+        const results = new Array(chunks.length);
         await Promise.all(chunks.map(async (chunk, i) => {
             const r = await fetch(DEEPL_ENDPOINT, {
                 method: 'POST',
@@ -265,22 +263,50 @@ async function translate(text, from, to) {
                         app_version: 'any', os_version: 'any' }
                 })
             });
-            if (!r.ok) {
-                console.error(`[DeepL ${logTime()}] ❌ HTTP ${r.status} (${from}→${to}) — cookie có thể hết hạn`);
-                throw new Error(`DeepL HTTP ${r.status}`);
-            }
+            if (!r.ok)
+                throw Object.assign(new Error(`DeepL HTTP ${r.status}`), { status: r.status });
             const d = await r.json();
             const t = d.translations?.[0]?.text;
             if (!t) throw new Error('Không có kết quả dịch');
             results[i] = t;
         }));
-        const ms = Date.now() - t0;
-        console.log(`[DeepL ${logTime()}] ✓ ${from}→${to} | ${ms}ms | "${preview}"`);
-        return { text: results.join('\n'), model: 'deepl' };
-    } catch (e) {
-        console.error(`[DeepL ${logTime()}] ❌ Lỗi dịch (${from}→${to}): ${e.message}`);
-        return { text, model: null };
+        return results;
     }
+
+    let results;
+    try {
+        results = await attempt();
+    } catch (e) {
+        if (e.noCookie) {
+            console.warn(`[DeepL ${logTime()}] ❌ Chưa có cookie — bỏ qua dịch`);
+            return { text, model: null };
+        }
+        const isAuthErr = e.status === 401 || e.status === 403 || e.status === 429 || (e.status && e.status >= 500);
+        if (isAuthErr) {
+            console.warn(`[DeepL ${logTime()}] 🔄 HTTP ${e.status} — tự làm mới token và thử lại...`);
+            const ok = await Promise.race([
+                triggerDeeplRefresh(),
+                new Promise(r => setTimeout(() => r(false), 40000))
+            ]);
+            if (ok) {
+                try {
+                    results = await attempt();
+                    console.log(`[DeepL ${logTime()}] ✅ Dịch thành công sau khi làm mới token`);
+                } catch (e2) {
+                    console.error(`[DeepL ${logTime()}] ❌ Vẫn lỗi sau khi làm mới (${from}→${to}): ${e2.message}`);
+                }
+            } else {
+                console.error(`[DeepL ${logTime()}] ❌ Làm mới token thất bại (${from}→${to})`);
+            }
+        } else {
+            console.error(`[DeepL ${logTime()}] ❌ Lỗi dịch (${from}→${to}): ${e.message}`);
+        }
+    }
+
+    if (!results) return { text, model: null };
+    const ms = Date.now() - t0;
+    console.log(`[DeepL ${logTime()}] ✓ ${from}→${to} | ${ms}ms | "${preview}"`);
+    return { text: results.join('\n'), model: 'deepl' };
 }
 
 async function refreshDeeplCookie() {
@@ -328,6 +354,13 @@ async function refreshDeeplCookie() {
     return false;
 }
 
+let _deeplRefreshPromise = null;
+function triggerDeeplRefresh() {
+    if (_deeplRefreshPromise) return _deeplRefreshPromise;
+    _deeplRefreshPromise = refreshDeeplCookie().finally(() => { _deeplRefreshPromise = null; });
+    return _deeplRefreshPromise;
+}
+
 function deeplCookieStatus() {
     const dc = loadDeeplCfg();
     if (!dc.cookie)    return '❌ Chưa có cookie';
@@ -350,12 +383,27 @@ function scheduleDeeplRefresh() {
     const h = Math.floor(delayMs / 3600000);
     const m = Math.floor((delayMs % 3600000) / 60000);
     console.log(`[DeepL ${logTime()}] ${deeplCookieStatus()} — làm mới sau ${h}h${m}m`);
-    setTimeout(async () => { await refreshDeeplCookie(); scheduleDeeplRefresh(); }, delayMs || 5000);
+    setTimeout(async () => { await triggerDeeplRefresh(); scheduleDeeplRefresh(); }, delayMs || 5000);
 }
 
 scheduleDeeplRefresh();
 
 const ltCache = new Map(); // cache kết quả spell check
+const callTranslateCache = new Map(); // cache dịch subtitle call (key: lang_pair|text)
+function cachedTranslate(text, from, to) {
+    if (from === to) return Promise.resolve({ text, model: null });
+    const key = `${from}|${to}|${text}`;
+    if (callTranslateCache.has(key)) return Promise.resolve(callTranslateCache.get(key));
+    return translate(text, from, to).then(r => {
+        if (callTranslateCache.size > 300) {
+            // xóa 100 entry cũ nhất
+            const keys = callTranslateCache.keys();
+            for (let i = 0; i < 100; i++) callTranslateCache.delete(keys.next().value);
+        }
+        callTranslateCache.set(key, r);
+        return r;
+    });
+}
 
 // ─── HTTP SERVER ──────────────────────────────────────────────────────────────
 const MIME = {
@@ -464,13 +512,211 @@ const srv = http.createServer((req, res) => {
         return;
     }
 
+    // ─── ADMIN REST API ───────────────────────────────────────────────────────
+    function adminAuth(req) {
+        const t = (req.headers['x-admin-token'] || '').trim();
+        return t && t === cfg.adminToken;
+    }
+
+    if (req.url === '/admin' || req.url === '/admin/') {
+        const fp2 = path.join(__dirname, 'admin.html');
+        fs.readFile(fp2, (e, d) => {
+            if (e) { res.writeHead(404); res.end('admin.html not found'); return; }
+            res.writeHead(200, { 'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-cache' });
+            res.end(d);
+        });
+        return;
+    }
+
+    if (req.method === 'POST' && req.url === '/api/admin/login') {
+        let body = '';
+        req.on('data', c => { body += c; });
+        req.on('end', () => {
+            try {
+                const { pass } = JSON.parse(body);
+                if (pass === cfg.adminPass) {
+                    // generate or reuse session token
+                    if (!cfg.adminToken) { cfg.adminToken = crypto.randomBytes(24).toString('hex'); }
+                    res.writeHead(200, { 'Content-Type':'application/json' });
+                    res.end(JSON.stringify({ ok: true, token: cfg.adminToken }));
+                } else {
+                    res.writeHead(401, { 'Content-Type':'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: 'Sai mật khẩu' }));
+                }
+            } catch { res.writeHead(400); res.end('{}'); }
+        });
+        return;
+    }
+
+    if (req.url === '/api/admin/stats' && req.method === 'GET') {
+        if (!adminAuth(req)) { res.writeHead(401); res.end('{}'); return; }
+        const totalUsers    = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
+        const totalMessages = db.prepare('SELECT COUNT(*) as c FROM messages WHERE deleted=0').get().c;
+        const onlineCount   = [...clients.values()].length;
+        const dbSize = (() => { try { return fs.statSync(path.join(DATA,'chat.db')).size; } catch { return 0; } })();
+        res.writeHead(200, { 'Content-Type':'application/json' });
+        res.end(JSON.stringify({
+            totalUsers, totalMessages, onlineCount,
+            uptime: process.uptime(),
+            dbSize,
+            deepl: deeplCookieStatus(),
+            onlineUsers: [...clients.values()].map(c => ({ name: c.name, lang: c.lang, inCall: c.inCall||false }))
+        }));
+        return;
+    }
+
+    if (req.url === '/api/admin/users' && req.method === 'GET') {
+        if (!adminAuth(req)) { res.writeHead(401); res.end('{}'); return; }
+        const users = db.prepare('SELECT name, lang, phone, email, avatar_color, last_seen FROM users ORDER BY last_seen DESC').all();
+        const msgCount = db.prepare('SELECT from_user, COUNT(*) as c FROM messages WHERE deleted=0 GROUP BY from_user').all();
+        const countMap = {};
+        for (const r of msgCount) countMap[r.from_user] = r.c;
+        const result = users.map(u => ({
+            name: u.name, lang: u.lang, phone: u.phone, email: u.email,
+            avatarColor: u.avatar_color, lastSeen: u.last_seen,
+            online: [...clients.values()].some(c => c.name === u.name),
+            msgCount: countMap[u.name] || 0
+        }));
+        res.writeHead(200, { 'Content-Type':'application/json' });
+        res.end(JSON.stringify(result));
+        return;
+    }
+
+    if (req.url.startsWith('/api/admin/user/') && req.method === 'DELETE') {
+        if (!adminAuth(req)) { res.writeHead(401); res.end('{}'); return; }
+        const name = decodeURIComponent(req.url.slice('/api/admin/user/'.length));
+        db.prepare('UPDATE messages SET deleted=1 WHERE from_user=?').run(name);
+        db.prepare('DELETE FROM users WHERE name=?').run(name);
+        allUsers.delete(name);
+        // kick if online
+        for (const [ws2, c] of clients) {
+            if (c.name === name) { send(ws2, { type:'error', text:'Tài khoản bị xóa bởi admin' }); ws2.terminate(); break; }
+        }
+        sendEvery({ type:'users', users:userList() });
+        res.writeHead(200, { 'Content-Type':'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+    }
+
+    if (req.url.startsWith('/api/admin/kick/') && req.method === 'POST') {
+        if (!adminAuth(req)) { res.writeHead(401); res.end('{}'); return; }
+        const name = decodeURIComponent(req.url.slice('/api/admin/kick/'.length));
+        for (const [ws2, c] of clients) {
+            if (c.name === name) { send(ws2, { type:'error', text:'Bạn bị kick bởi admin' }); ws2.terminate(); break; }
+        }
+        res.writeHead(200, { 'Content-Type':'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+    }
+
+    if (req.url.startsWith('/api/admin/messages') && req.method === 'GET') {
+        if (!adminAuth(req)) { res.writeHead(401); res.end('{}'); return; }
+        const qs = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
+        const user = qs.get('user') || '';
+        const limit = Math.min(parseInt(qs.get('limit')||'100'), 500);
+        let rows;
+        if (user) {
+            rows = db.prepare(`SELECT id, from_user, to_user, text, translated_text, msg_type, ts, url, caption FROM messages WHERE deleted=0 AND (from_user=? OR to_user=?) ORDER BY ts DESC LIMIT ?`).all(user, user, limit);
+        } else {
+            rows = db.prepare(`SELECT id, from_user, to_user, text, translated_text, msg_type, ts, url, caption FROM messages WHERE deleted=0 ORDER BY ts DESC LIMIT ?`).all(limit);
+        }
+        res.writeHead(200, { 'Content-Type':'application/json' });
+        res.end(JSON.stringify(rows));
+        return;
+    }
+
+    if (req.url.startsWith('/api/admin/message/') && req.method === 'DELETE') {
+        if (!adminAuth(req)) { res.writeHead(401); res.end('{}'); return; }
+        const id = decodeURIComponent(req.url.slice('/api/admin/message/'.length));
+        db.prepare('UPDATE messages SET deleted=1 WHERE id=?').run(id);
+        sendEvery({ type:'delete', id });
+        res.writeHead(200, { 'Content-Type':'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+    }
+
+    if (req.url === '/api/admin/clear-conv' && req.method === 'POST') {
+        if (!adminAuth(req)) { res.writeHead(401); res.end('{}'); return; }
+        let body = '';
+        req.on('data', c => { body += c; });
+        req.on('end', () => {
+            try {
+                const { user1, user2 } = JSON.parse(body);
+                if (user2) {
+                    db.prepare(`UPDATE messages SET deleted=1 WHERE (from_user=? AND to_user=?) OR (from_user=? AND to_user=?)`).run(user1, user2, user2, user1);
+                } else {
+                    db.prepare(`UPDATE messages SET deleted=1 WHERE from_user=? OR to_user=?`).run(user1, user1);
+                }
+                res.writeHead(200, { 'Content-Type':'application/json' });
+                res.end(JSON.stringify({ ok: true }));
+            } catch { res.writeHead(400); res.end('{}'); }
+        });
+        return;
+    }
+
+    if (req.url === '/api/admin/clear-all' && req.method === 'POST') {
+        if (!adminAuth(req)) { res.writeHead(401); res.end('{}'); return; }
+        db.prepare('UPDATE messages SET deleted=1').run();
+        sendEvery({ type:'system', text:'Admin đã xóa toàn bộ tin nhắn', ts:Date.now() });
+        res.writeHead(200, { 'Content-Type':'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+    }
+
+    if (req.url === '/api/admin/deepl-cookie' && req.method === 'POST') {
+        if (!adminAuth(req)) { res.writeHead(401); res.end('{}'); return; }
+        let body = '';
+        req.on('data', c => { body += c; });
+        req.on('end', () => {
+            try {
+                const { cookie } = JSON.parse(body);
+                if (!cookie) { res.writeHead(400); res.end(JSON.stringify({ error: 'Cookie rỗng' })); return; }
+                saveDeeplCfg(cookie.trim());
+                res.writeHead(200, { 'Content-Type':'application/json' });
+                res.end(JSON.stringify({ ok: true, status: deeplCookieStatus() }));
+            } catch { res.writeHead(400); res.end('{}'); }
+        });
+        return;
+    }
+
+    if (req.url === '/api/admin/deepl-refresh' && req.method === 'POST') {
+        if (!adminAuth(req)) { res.writeHead(401); res.end('{}'); return; }
+        triggerDeeplRefresh().then(ok => {
+            res.writeHead(200, { 'Content-Type':'application/json' });
+            res.end(JSON.stringify({ ok, status: deeplCookieStatus() }));
+        });
+        return;
+    }
+
+    if (req.url === '/api/admin/change-pass' && req.method === 'POST') {
+        if (!adminAuth(req)) { res.writeHead(401); res.end('{}'); return; }
+        let body = '';
+        req.on('data', c => { body += c; });
+        req.on('end', () => {
+            try {
+                const { pass } = JSON.parse(body);
+                if (!pass || pass.length < 4) { res.writeHead(400); res.end(JSON.stringify({ error: 'Mật khẩu quá ngắn' })); return; }
+                cfg.adminPass = pass;
+                cfg.adminToken = null; // invalidate token
+                saveCfg();
+                res.writeHead(200, { 'Content-Type':'application/json' });
+                res.end(JSON.stringify({ ok: true }));
+            } catch { res.writeHead(400); res.end('{}'); }
+        });
+        return;
+    }
+
+    // ─── STATIC FILES ─────────────────────────────────────────────────────────
     const urlPath = req.url.split('?')[0];
     let fp;
     if (urlPath === '/' || urlPath === '/realtime.html') {
         fp = path.join(__dirname, 'realtime.html');
     } else {
         const safe = path.normalize(urlPath).replace(/^(\.\.[\/\\])+/, '');
-        if (safe.includes('data') || safe.endsWith('server.js')) { res.writeHead(403); res.end(); return; }
+        // block direct access to sensitive files
+        if (safe.includes('data') || safe.endsWith('server.js') || safe === 'admin.html') {
+            res.writeHead(403); res.end(); return;
+        }
         fp = path.join(__dirname, safe);
     }
     const ext = path.extname(fp);
@@ -760,12 +1006,21 @@ wss.on('connection', ws => {
         if (m.type === 'webrtc-answer') { for (const [cws,c] of clients) { if (c.name===m.to) { send(cws,{type:'webrtc-answer',from:me.name,answer:m.answer});   break; } } return; }
         if (m.type === 'webrtc-ice')    { for (const [cws,c] of clients) { if (c.name===m.to) { send(cws,{type:'webrtc-ice',  from:me.name,candidate:m.candidate});break; } } return; }
 
+        if (m.type === 'call-pretranslate') {
+            const text = String(m.text||'').trim(); if (!text) return;
+            const targetName = String(m.to||'').trim();
+            for (const [,c] of clients) {
+                if (c.name === targetName) { cachedTranslate(text, me.lang, c.lang).catch(()=>{}); break; }
+            }
+            return;
+        }
+
         if (m.type === 'call-translate') {
             const text = String(m.text||'').trim(); if (!text) return;
             const targetName = String(m.to||'').trim();
             for (const [cws,c] of clients) {
                 if (c.name===targetName) {
-                    const r = await translate(text, me.lang, c.lang);
+                    const r = await cachedTranslate(text, me.lang, c.lang);
                     send(cws,{type:'call-subtitle',from:me.name,original:text,translated:r.text,fromLang:me.lang}); break;
                 }
             }
