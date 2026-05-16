@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TransChat Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#060b17;--bg1:#0d1526;--bg2:#182035;--bg3:#2a3a55;
+  --accent:#6366f1;--green:#22c55e;--red:#ef4444;--yellow:#f59e0b;
+  --text:#edf2ff;--text2:#94a3b8;--text3:#546580;
+}
+body{font-family:'Segoe UI',sans-serif;background:var(--bg0);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+a{color:var(--accent);text-decoration:none}
+
+/* ── Login ── */
+#login-screen{display:flex;align-items:center;justify-content:center;height:100vh;background:radial-gradient(ellipse at 50% 0%,rgba(99,102,241,.15),transparent 60%)}
+.login-box{background:var(--bg1);border:1px solid var(--bg3);border-radius:16px;padding:40px 36px;width:340px;display:flex;flex-direction:column;gap:18px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.login-box h1{font-size:1.4em;text-align:center;background:linear-gradient(135deg,#818cf8,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.login-box p{text-align:center;color:var(--text3);font-size:.85em}
+.inp{width:100%;padding:10px 14px;background:var(--bg0);color:var(--text);border:1px solid var(--bg3);border-radius:9px;font-size:.95em;outline:none;transition:border-color .2s}
+.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+.btn{padding:10px 20px;background:linear-gradient(135deg,#4f46e5,#6366f1);color:#fff;border:none;border-radius:9px;cursor:pointer;font-size:.95em;font-weight:600;transition:opacity .2s,transform .15s}
+.btn:hover{opacity:.9;transform:translateY(-1px)}
+.btn:active{transform:scale(.97)}
+.btn.red{background:linear-gradient(135deg,#b91c1c,#ef4444)}
+.btn.yellow{background:linear-gradient(135deg,#b45309,#f59e0b)}
+.btn.green{background:linear-gradient(135deg,#15803d,#22c55e)}
+.btn.ghost{background:var(--bg2);color:var(--text2)}
+.btn.ghost:hover{background:var(--bg3);color:var(--text)}
+.btn.sm{padding:5px 12px;font-size:.8em;border-radius:6px}
+#login-err{color:var(--red);font-size:.85em;text-align:center;min-height:18px}
+
+/* ── Shell ── */
+#app{display:none;flex:1;flex-direction:column;overflow:hidden}
+
+/* ── Top bar ── */
+#topbar{background:rgba(13,21,38,.95);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.06);padding:0 20px;height:52px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+#topbar h1{font-size:1em;font-weight:700;background:linear-gradient(135deg,#818cf8,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;flex-shrink:0}
+.tabs{display:flex;gap:2px;flex:1}
+.tab{padding:7px 16px;border:none;background:none;color:var(--text3);cursor:pointer;border-radius:8px;font-size:.88em;font-weight:500;transition:all .2s}
+.tab:hover{background:var(--bg2);color:var(--text2)}
+.tab.active{background:rgba(99,102,241,.18);color:#818cf8;font-weight:600}
+#tb-logout{margin-left:auto}
+
+/* ── Content ── */
+#content{flex:1;overflow:hidden;display:flex}
+.panel{display:none;flex:1;overflow:auto;padding:20px}
+.panel.active{display:flex;flex-direction:column;gap:16px}
+
+/* ── Cards ── */
+.card{background:var(--bg1);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:18px 20px}
+.card h2{font-size:.92em;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;font-weight:600}
+
+/* ── Stats row ── */
+.stats-row{display:flex;gap:12px;flex-wrap:wrap}
+.stat-box{flex:1;min-width:140px;background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.stat-val{font-size:2em;font-weight:700;line-height:1}
+.stat-lbl{font-size:.75em;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.stat-box.blue .stat-val{color:#60a5fa}
+.stat-box.green .stat-val{color:var(--green)}
+.stat-box.purple .stat-val{color:#818cf8}
+.stat-box.yellow .stat-val{color:var(--yellow)}
+
+/* ── Online users ── */
+.online-chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--bg2);border:1px solid rgba(34,197,94,.25);border-radius:20px;padding:5px 12px;font-size:.82em;display:flex;align-items:center;gap:6px;color:var(--text2)}
+.chip .dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
+
+/* ── Tables ── */
+.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
+table{width:100%;border-collapse:collapse;font-size:.86em}
+th{background:var(--bg2);padding:10px 14px;text-align:left;color:var(--text3);font-weight:600;font-size:.8em;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+td{padding:9px 14px;border-top:1px solid rgba(255,255,255,.04);vertical-align:middle;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr:hover td{background:rgba(255,255,255,.025)}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.75em;font-weight:600}
+.badge.online{background:rgba(34,197,94,.15);color:var(--green)}
+.badge.offline{background:var(--bg2);color:var(--text3)}
+.actions{display:flex;gap:6px}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.toolbar .inp{width:240px;padding:8px 12px;font-size:.85em}
+
+/* ── Modal ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg1);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:28px 28px 22px;width:460px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:14px}
+.modal h3{font-size:1em;font-weight:700}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+.modal label{font-size:.82em;color:var(--text3);display:block;margin-bottom:5px}
+.modal textarea{width:100%;background:var(--bg0);color:var(--text);border:1px solid var(--bg3);border-radius:8px;padding:9px 12px;font-size:.85em;resize:vertical;min-height:80px;font-family:inherit;outline:none}
+.modal textarea:focus{border-color:var(--accent)}
+
+/* ── DeepL status ── */
+.deepl-status{padding:10px 14px;border-radius:9px;background:var(--bg2);font-size:.88em;line-height:1.6}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 18px;font-size:.88em;box-shadow:0 8px 24px rgba(0,0,0,.5);transition:opacity .3s,transform .3s;opacity:0;transform:translateY(8px);z-index:999;pointer-events:none;max-width:320px}
+#toast.show{opacity:1;transform:none}
+#toast.ok{border-color:rgba(34,197,94,.4);color:var(--green)}
+#toast.err{border-color:rgba(239,68,68,.4);color:var(--red)}
+
+/* ── Confirm dialog ── */
+#confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;align-items:center;justify-content:center}
+#confirm-overlay.open{display:flex}
+.confirm-box{background:var(--bg1);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:24px 26px;width:340px;max-width:95vw;box-shadow:0 16px 40px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:14px}
+.confirm-box p{font-size:.92em;color:var(--text2);line-height:1.5}
+.confirm-footer{display:flex;gap:8px;justify-content:flex-end}
+
+@media(max-width:600px){
+  .panel{padding:12px}
+  .stats-row{flex-direction:column}
+  .stat-box{min-width:unset}
+  .tabs .tab{padding:7px 10px;font-size:.8em}
+}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>⚙ TransChat Admin</h1>
+    <p>Đăng nhập để quản lý server</p>
+    <input class="inp" type="password" id="inp-pass" placeholder="Mật khẩu admin..." autocomplete="current-password">
+    <button class="btn" id="btn-login">Đăng nhập</button>
+    <div id="login-err"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <div id="topbar">
+    <h1>⚙ TransChat Admin</h1>
+    <div class="tabs">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="users">Người dùng</button>
+      <button class="tab" data-tab="messages">Tin nhắn</button>
+      <button class="tab" data-tab="server">Server</button>
+    </div>
+    <button class="btn ghost sm" id="tb-logout">Đăng xuất</button>
+  </div>
+  <div id="content">
+
+    <!-- Dashboard -->
+    <div class="panel active" id="panel-dashboard">
+      <div class="stats-row" id="stats-row">
+        <div class="stat-box blue"><div class="stat-val" id="s-users">—</div><div class="stat-lbl">Người dùng</div></div>
+        <div class="stat-box green"><div class="stat-val" id="s-online">—</div><div class="stat-lbl">Đang online</div></div>
+        <div class="stat-box purple"><div class="stat-val" id="s-msgs">—</div><div class="stat-lbl">Tin nhắn</div></div>
+        <div class="stat-box yellow"><div class="stat-val" id="s-uptime">—</div><div class="stat-lbl">Uptime</div></div>
+      </div>
+      <div class="card">
+        <h2>Đang online</h2>
+        <div class="online-chips" id="online-chips"><span style="color:var(--text3);font-size:.85em">Không có ai online</span></div>
+      </div>
+      <div class="card">
+        <h2>DeepL Translation</h2>
+        <div class="deepl-status" id="deepl-status">Đang tải...</div>
+      </div>
+    </div>
+
+    <!-- Users -->
+    <div class="panel" id="panel-users">
+      <div class="toolbar">
+        <input class="inp" type="text" id="user-search" placeholder="Tìm tên...">
+        <button class="btn sm" onclick="loadUsers()">Làm mới</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Tên</th><th>Ngôn ngữ</th><th>SĐT</th><th>Trạng thái</th><th>Tin nhắn</th><th>Lần cuối</th><th>Hành động</th></tr></thead>
+          <tbody id="users-tbody"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="panel" id="panel-messages">
+      <div class="toolbar">
+        <input class="inp" type="text" id="msg-filter-user" placeholder="Lọc theo tên người dùng...">
+        <select class="inp" id="msg-limit" style="width:120px">
+          <option value="50">50 tin</option>
+          <option value="100" selected>100 tin</option>
+          <option value="200">200 tin</option>
+          <option value="500">500 tin</option>
+        </select>
+        <button class="btn sm" onclick="loadMessages()">Lọc</button>
+        <button class="btn sm red" onclick="confirmClearConv()">Xóa hội thoại</button>
+        <button class="btn sm red" onclick="confirmClearAll()">Xóa tất cả</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Từ</th><th>Đến</th><th>Nội dung</th><th>Dịch</th><th>Loại</th><th>Thời gian</th><th></th></tr></thead>
+          <tbody id="msgs-tbody"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Server -->
+    <div class="panel" id="panel-server">
+      <div class="card">
+        <h2>Thông tin server</h2>
+        <div id="server-info" style="display:flex;flex-direction:column;gap:8px;font-size:.88em;color:var(--text2)">Đang tải...</div>
+      </div>
+      <div class="card">
+        <h2>DeepL Cookie</h2>
+        <div class="deepl-status" id="deepl-status2">Đang tải...</div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn sm green" id="btn-deepl-refresh">🔄 Tự động lấy cookie</button>
+          <button class="btn sm yellow" id="btn-deepl-manual">✏️ Nhập cookie thủ công</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Bảo mật</h2>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input class="inp" type="password" id="inp-new-pass" placeholder="Mật khẩu mới..." style="width:220px">
+          <button class="btn sm" id="btn-change-pass">Đổi mật khẩu</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal: nhập cookie thủ công -->
+<div class="modal-overlay" id="cookie-modal">
+  <div class="modal">
+    <h3>Nhập DeepL Cookie thủ công</h3>
+    <div>
+      <label>Cookie (từ Developer Tools → Network → deepl.com request):</label>
+      <textarea id="inp-cookie" placeholder="dapUid=...; ..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost sm" onclick="closeModal('cookie-modal')">Hủy</button>
+      <button class="btn sm" id="btn-save-cookie">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: xóa hội thoại -->
+<div class="modal-overlay" id="conv-modal">
+  <div class="modal">
+    <h3>Xóa hội thoại</h3>
+    <div>
+      <label>Người dùng 1 (bắt buộc):</label>
+      <input class="inp" type="text" id="inp-conv-u1" placeholder="Tên người dùng...">
+    </div>
+    <div>
+      <label>Người dùng 2 (để trống = xóa tất cả tin của người dùng 1):</label>
+      <input class="inp" type="text" id="inp-conv-u2" placeholder="Tên người dùng (tùy chọn)...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost sm" onclick="closeModal('conv-modal')">Hủy</button>
+      <button class="btn red sm" id="btn-clear-conv">Xóa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm dialog -->
+<div id="confirm-overlay">
+  <div class="confirm-box">
+    <strong id="confirm-title">Xác nhận</strong>
+    <p id="confirm-msg"></p>
+    <div class="confirm-footer">
+      <button class="btn ghost sm" id="confirm-cancel">Hủy</button>
+      <button class="btn red sm" id="confirm-ok">Xác nhận</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = '';
+let TOKEN = localStorage.getItem('admin_token') || '';
+let refreshTimer = null;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function api(method, url, body) {
+  return fetch(API + url, {
+    method,
+    headers: { 'Content-Type':'application/json', 'x-admin-token': TOKEN },
+    body: body ? JSON.stringify(body) : undefined
+  }).then(r => r.json());
+}
+
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function fmtTime(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('vi-VN', { hour12:false });
+}
+
+function fmtUptime(s) {
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+  return `${h}h ${m}m`;
+}
+
+function fmtSize(b) {
+  if (b > 1024*1024) return (b/1024/1024).toFixed(1)+' MB';
+  return (b/1024).toFixed(0)+' KB';
+}
+
+function confirm(title, msg, onOk) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent = msg;
+  const overlay = document.getElementById('confirm-overlay');
+  overlay.classList.add('open');
+  document.getElementById('confirm-ok').onclick = () => { overlay.classList.remove('open'); onOk(); };
+  document.getElementById('confirm-cancel').onclick = () => { overlay.classList.remove('open'); };
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+async function tryAutoLogin() {
+  if (!TOKEN) return;
+  const res = await api('GET', '/api/admin/stats').catch(() => null);
+  if (res && !res.error) { showApp(); }
+  else { TOKEN = ''; localStorage.removeItem('admin_token'); }
+}
+
+document.getElementById('btn-login').onclick = async () => {
+  const pass = document.getElementById('inp-pass').value;
+  const err  = document.getElementById('login-err');
+  err.textContent = '';
+  const res = await fetch('/api/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ pass })
+  }).then(r => r.json()).catch(() => ({ ok:false, error:'Lỗi kết nối' }));
+  if (res.ok) {
+    TOKEN = res.token;
+    localStorage.setItem('admin_token', TOKEN);
+    showApp();
+  } else {
+    err.textContent = res.error || 'Sai mật khẩu';
+  }
+};
+
+document.getElementById('inp-pass').onkeydown = e => { if (e.key==='Enter') document.getElementById('btn-login').click(); };
+
+document.getElementById('tb-logout').onclick = () => {
+  TOKEN = '';
+  localStorage.removeItem('admin_token');
+  clearInterval(refreshTimer);
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+};
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  loadDashboard();
+  refreshTimer = setInterval(loadDashboard, 10000);
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    const id = 'panel-' + tab.dataset.tab;
+    document.getElementById(id).classList.add('active');
+    if (tab.dataset.tab === 'users') loadUsers();
+    if (tab.dataset.tab === 'messages') loadMessages();
+    if (tab.dataset.tab === 'server') loadServer();
+  };
+});
+
+// ── Dashboard ────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const s = await api('GET', '/api/admin/stats').catch(() => null);
+  if (!s) return;
+  document.getElementById('s-users').textContent  = s.totalUsers;
+  document.getElementById('s-online').textContent = s.onlineCount;
+  document.getElementById('s-msgs').textContent   = s.totalMessages;
+  document.getElementById('s-uptime').textContent = fmtUptime(s.uptime);
+  document.getElementById('deepl-status').textContent  = s.deepl;
+  document.getElementById('deepl-status2').textContent = s.deepl;
+
+  const chips = document.getElementById('online-chips');
+  if (s.onlineUsers && s.onlineUsers.length) {
+    chips.innerHTML = s.onlineUsers.map(u =>
+      `<div class="chip"><span class="dot"></span>${esc(u.name)} <span style="font-size:.78em;color:var(--text3)">${esc(u.lang)}${u.inCall?' 📞':''}</span></div>`
+    ).join('');
+  } else {
+    chips.innerHTML = '<span style="color:var(--text3);font-size:.85em">Không có ai online</span>';
+  }
+
+  if (document.getElementById('panel-server').classList.contains('active')) loadServer();
+}
+
+// ── Users ────────────────────────────────────────────────────────────────────
+let usersData = [];
+async function loadUsers() {
+  const res = await api('GET', '/api/admin/users').catch(() => []);
+  usersData = res;
+  renderUsers();
+}
+
+function renderUsers() {
+  const q = (document.getElementById('user-search').value||'').toLowerCase();
+  const rows = usersData.filter(u => !q || u.name.toLowerCase().includes(q));
+  const tb = document.getElementById('users-tbody');
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Không tìm thấy</td></tr>'; return; }
+  tb.innerHTML = rows.map(u => `
+    <tr>
+      <td><strong>${esc(u.name)}</strong></td>
+      <td>${esc(u.lang)}</td>
+      <td>${esc(u.phone||'—')}</td>
+      <td><span class="badge ${u.online?'online':'offline'}">${u.online?'Online':'Offline'}</span></td>
+      <td>${u.msgCount}</td>
+      <td>${fmtTime(u.lastSeen)}</td>
+      <td><div class="actions">
+        <button class="btn sm yellow" onclick="kickUser('${esc(u.name)}')">Kick</button>
+        <button class="btn sm red" onclick="deleteUser('${esc(u.name)}')">Xóa</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+document.getElementById('user-search').oninput = renderUsers;
+
+async function kickUser(name) {
+  confirm('Kick người dùng', `Kick "${name}" khỏi server?`, async () => {
+    const r = await api('POST', `/api/admin/kick/${encodeURIComponent(name)}`);
+    if (r.ok) { toast(`Đã kick ${name}`); loadUsers(); }
+    else toast('Lỗi!', 'err');
+  });
+}
+
+async function deleteUser(name) {
+  confirm('Xóa người dùng', `Xóa "${name}" và tất cả tin nhắn của họ?`, async () => {
+    const r = await api('DELETE', `/api/admin/user/${encodeURIComponent(name)}`);
+    if (r.ok) { toast(`Đã xóa ${name}`); loadUsers(); loadDashboard(); }
+    else toast('Lỗi!', 'err');
+  });
+}
+
+// ── Messages ─────────────────────────────────────────────────────────────────
+async function loadMessages() {
+  const user  = document.getElementById('msg-filter-user').value.trim();
+  const limit = document.getElementById('msg-limit').value;
+  const qs    = new URLSearchParams();
+  if (user) qs.set('user', user);
+  qs.set('limit', limit);
+  const rows = await api('GET', `/api/admin/messages?${qs}`).catch(() => []);
+  const tb = document.getElementById('msgs-tbody');
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Không có tin nhắn</td></tr>'; return; }
+  tb.innerHTML = rows.map(m => `
+    <tr>
+      <td>${esc(m.from_user)}</td>
+      <td>${esc(m.to_user||'[Group]')}</td>
+      <td title="${esc(m.text)}">${esc((m.text||m.url||'').slice(0,80))}${(m.text||'').length>80?'…':''}</td>
+      <td title="${esc(m.translated_text)}" style="color:var(--text3)">${esc((m.translated_text||'').slice(0,60))}${(m.translated_text||'').length>60?'…':''}</td>
+      <td>${esc(m.msg_type)}</td>
+      <td style="color:var(--text3)">${fmtTime(m.ts)}</td>
+      <td><button class="btn sm red" onclick="deleteMsg('${m.id}')">Xóa</button></td>
+    </tr>`).join('');
+}
+
+async function deleteMsg(id) {
+  const r = await api('DELETE', `/api/admin/message/${encodeURIComponent(id)}`);
+  if (r.ok) { toast('Đã xóa tin nhắn'); loadMessages(); }
+  else toast('Lỗi!', 'err');
+}
+
+function confirmClearConv() { openModal('conv-modal'); }
+function confirmClearAll() {
+  confirm('Xóa TẤT CẢ tin nhắn', 'Thao tác này sẽ xóa toàn bộ lịch sử chat. Không thể hoàn tác!', async () => {
+    const r = await api('POST', '/api/admin/clear-all');
+    if (r.ok) { toast('Đã xóa tất cả tin nhắn'); loadMessages(); loadDashboard(); }
+    else toast('Lỗi!', 'err');
+  });
+}
+
+document.getElementById('btn-clear-conv').onclick = async () => {
+  const u1 = document.getElementById('inp-conv-u1').value.trim();
+  const u2 = document.getElementById('inp-conv-u2').value.trim();
+  if (!u1) { toast('Nhập tên người dùng 1', 'err'); return; }
+  const r = await api('POST', '/api/admin/clear-conv', { user1:u1, user2:u2||null });
+  if (r.ok) { toast('Đã xóa hội thoại'); closeModal('conv-modal'); loadMessages(); }
+  else toast('Lỗi!', 'err');
+};
+
+// ── Server ────────────────────────────────────────────────────────────────────
+async function loadServer() {
+  const s = await api('GET', '/api/admin/stats').catch(() => null);
+  if (!s) return;
+  document.getElementById('server-info').innerHTML = `
+    <div>⏱ Uptime: <strong>${fmtUptime(s.uptime)}</strong></div>
+    <div>👥 Tổng người dùng: <strong>${s.totalUsers}</strong></div>
+    <div>💬 Tổng tin nhắn: <strong>${s.totalMessages}</strong></div>
+    <div>🟢 Đang online: <strong>${s.onlineCount}</strong></div>
+    <div>💾 Database: <strong>${fmtSize(s.dbSize)}</strong></div>
+  `;
+  document.getElementById('deepl-status2').textContent = s.deepl;
+}
+
+document.getElementById('btn-deepl-refresh').onclick = async () => {
+  const btn = document.getElementById('btn-deepl-refresh');
+  btn.disabled = true; btn.textContent = '⏳ Đang lấy...';
+  const r = await api('POST', '/api/admin/deepl-refresh').catch(() => ({ ok:false }));
+  btn.disabled = false; btn.textContent = '🔄 Tự động lấy cookie';
+  if (r.ok) { toast('Cookie mới đã được lấy!'); document.getElementById('deepl-status2').textContent = r.status; }
+  else toast('Không lấy được cookie. Xem log server.', 'err');
+};
+
+document.getElementById('btn-deepl-manual').onclick = () => openModal('cookie-modal');
+document.getElementById('btn-save-cookie').onclick = async () => {
+  const cookie = document.getElementById('inp-cookie').value.trim();
+  if (!cookie) { toast('Cookie không được rỗng', 'err'); return; }
+  const r = await api('POST', '/api/admin/deepl-cookie', { cookie });
+  if (r.ok) { toast('Đã lưu cookie!'); document.getElementById('deepl-status2').textContent = r.status; closeModal('cookie-modal'); }
+  else toast('Lỗi!', 'err');
+};
+
+document.getElementById('btn-change-pass').onclick = async () => {
+  const pass = document.getElementById('inp-new-pass').value.trim();
+  if (!pass || pass.length < 4) { toast('Mật khẩu tối thiểu 4 ký tự', 'err'); return; }
+  confirm('Đổi mật khẩu', `Đổi mật khẩu admin thành "${pass}"?`, async () => {
+    const r = await api('POST', '/api/admin/change-pass', { pass });
+    if (r.ok) { toast('Đã đổi mật khẩu. Đăng nhập lại.'); TOKEN = ''; localStorage.removeItem('admin_token'); document.getElementById('tb-logout').click(); }
+    else toast('Lỗi!', 'err');
+  });
+};
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+tryAutoLogin();
+</script>
+</body>
+</html>
